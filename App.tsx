@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Product, CartItem } from './types';
 import { INITIAL_PRODUCTS } from './constants';
 import ProductList from './components/ProductList';
@@ -6,7 +6,7 @@ import Cart from './components/Cart';
 import BillSummary from './components/BillSummary';
 import EditProductModal from './components/EditProductModal';
 import AddProductForm from './components/AddProductForm';
-import { PlusIcon } from './components/icons';
+import { PlusIcon, SunIcon, MoonIcon } from './components/icons';
 
 type View = 'sale' | 'bill';
 
@@ -17,6 +17,31 @@ function App() {
   const [view, setView] = useState<View>('sale');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
+  
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    if (typeof window !== 'undefined' && localStorage.getItem('theme')) {
+      const savedTheme = localStorage.getItem('theme');
+      return savedTheme === 'dark' ? 'dark' : 'light';
+    }
+    if (typeof window !== 'undefined') {
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light';
+  });
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
 
   const categories = useMemo(() => [...new Set(products.map(p => p.category))].sort(), [products]);
 
@@ -131,7 +156,14 @@ function App() {
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Sanpoh Kawn, N. Vanlaiphai</p>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: 8787747469 / 9383180834</p>
           </div>
-          <div className="flex items-center space-x-4 flex-shrink-0">
+          <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
+             <button
+                onClick={toggleTheme}
+                className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                aria-label="Toggle theme"
+            >
+                {theme === 'light' ? <MoonIcon className="w-6 h-6" /> : <SunIcon className="w-6 h-6" />}
+            </button>
             {view === 'sale' && (
               <button
                 onClick={() => setIsAddProductOpen(true)}
