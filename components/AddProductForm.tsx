@@ -1,108 +1,109 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
+import { XMarkIcon } from './icons';
 
 interface AddProductFormProps {
-  onAddProduct: (productData: Omit<Product, 'id'>) => void;
-  onCancel: () => void;
+  onAddProduct: (product: Omit<Product, 'id'>) => void;
+  categories: string[];
+  onClose: () => void;
 }
 
-const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, onCancel }) => {
+const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, categories, onClose }) => {
   const [name, setName] = useState('');
   const [mrp, setMrp] = useState('');
-  const [stock, setStock] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [category, setCategory] = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !mrp || !stock) {
-      alert('Please fill out at least Name, MRP, and Stock.');
+    if (!name.trim() || !mrp || !category.trim()) {
+      setError('All fields are required.');
+      return;
+    }
+    const mrpValue = parseFloat(mrp);
+    if (isNaN(mrpValue) || mrpValue <= 0) {
+      setError('Please enter a valid MRP.');
       return;
     }
 
-    const finalImageUrl = imageUrl.trim() || `https://picsum.photos/seed/${name.trim().replace(/\s+/g, '-')}/400`;
-
-    onAddProduct({
-      name: name.trim(),
-      mrp: parseFloat(mrp),
-      stock: parseInt(stock, 10),
-      imageUrl: finalImageUrl,
-    });
+    onAddProduct({ name, mrp: mrpValue, category });
+    // Parent component will handle closing the sidebar.
   };
-  
-  const formInputStyle = "w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500";
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4 sm:p-6 mb-6">
-      <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">Add New Product</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="productName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Product Name</label>
-          <input
-            id="productName"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={formInputStyle}
-            placeholder="e.g., Organic Bananas"
-            required
-          />
+    <div className="flex flex-col h-full bg-white dark:bg-slate-900">
+      <header className="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center flex-shrink-0">
+        <h2 id="add-product-title" className="text-xl font-bold text-slate-900 dark:text-white">Add New Product</h2>
+         <button 
+            onClick={onClose} 
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            aria-label="Close panel"
+        >
+            <XMarkIcon className="w-6 h-6" />
+        </button>
+      </header>
+
+      <form onSubmit={handleSubmit} className="p-6 flex-grow overflow-y-auto">
+        <div className="space-y-4">
+            <div>
+                <label htmlFor="new-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Product Name</label>
+                <input
+                  id="new-name"
+                  type="text"
+                  placeholder="e.g., Classic Lays Chips"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
+                />
+            </div>
+            <div>
+                <label htmlFor="new-category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
+                <input
+                  id="new-category"
+                  type="text"
+                  placeholder="e.g., Biscuits & Snacks"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
+                  list="categories-list"
+                />
+                <datalist id="categories-list">
+                    {categories.map((cat) => <option key={cat} value={cat} />)}
+                </datalist>
+            </div>
+            <div>
+                <label htmlFor="new-mrp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">MRP (₹)</label>
+                <input
+                  id="new-mrp"
+                  type="number"
+                  placeholder="e.g., 20"
+                  value={mrp}
+                  onChange={(e) => setMrp(e.target.value)}
+                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
+                  min="0.01"
+                  step="0.01"
+                />
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="productMrp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">MRP ($)</label>
-            <input
-              id="productMrp"
-              type="number"
-              value={mrp}
-              onChange={(e) => setMrp(e.target.value)}
-              className={formInputStyle}
-              placeholder="e.g., 1.99"
-              min="0"
-              step="0.01"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="productStock" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Stock</label>
-            <input
-              id="productStock"
-              type="number"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              className={formInputStyle}
-              placeholder="e.g., 100"
-              min="0"
-              step="1"
-              required
-            />
-          </div>
-        </div>
-         <div>
-          <label htmlFor="imageUrl" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Image URL (Optional)</label>
-          <input
-            id="imageUrl"
-            type="text"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            className={formInputStyle}
-            placeholder="Leave blank for a random image"
-          />
-        </div>
-        <div className="flex justify-end space-x-3 pt-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-4 py-2 rounded-lg text-sm font-bold bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 transition-colors duration-200"
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-lg text-sm font-bold bg-primary-600 hover:bg-primary-700 text-white transition-colors duration-200"
-          >
-            Save Product
-          </button>
-        </div>
+        
+        <footer className="p-4 border-t border-slate-200 dark:border-slate-700 mt-auto flex-shrink-0 -mx-6 -mb-6">
+           <div className="flex justify-end space-x-3">
+             <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-md hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-primary-600 text-white font-semibold rounded-md hover:bg-primary-700 transition-colors"
+              >
+                Add Product
+              </button>
+           </div>
+        </footer>
       </form>
     </div>
   );

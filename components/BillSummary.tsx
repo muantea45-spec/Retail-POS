@@ -5,24 +5,32 @@ import { WhatsAppIcon, MessageIcon } from './icons';
 interface BillSummaryProps {
   items: CartItem[];
   subtotal: number;
-  total: number;
+  itemsTotal: number;
+  billDiscount: number;
+  finalTotal: number;
   onNewSale: () => void;
 }
 
-const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, total, onNewSale }) => {
+const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, itemsTotal, billDiscount, finalTotal, onNewSale }) => {
   const generateBillText = () => {
     let text = '--- Your Bill ---\n\n';
     items.forEach(item => {
-      text += `${item.name} (x${item.quantity}) - $${(item.price * item.quantity).toFixed(2)}`;
+      text += `${item.name} (x${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`;
       if (item.discount > 0) {
-        text += ` (${item.discount}% off MRP $${item.mrp.toFixed(2)})\n`;
+        text += ` (${item.discount}% off MRP ₹${item.mrp.toFixed(2)})\n`;
       } else {
         text += '\n';
       }
     });
     text += '\n-------------------\n';
-    text += `Subtotal: $${subtotal.toFixed(2)}\n`;
-    text += `Total: $${total.toFixed(2)}\n\n`;
+    text += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
+    if (subtotal !== itemsTotal) {
+      text += `Items Total: ₹${itemsTotal.toFixed(2)}\n`;
+    }
+    if (billDiscount > 0) {
+      text += `Bill Discount: ${billDiscount}%\n`;
+    }
+    text += `Grand Total: ₹${finalTotal.toFixed(2)}\n\n`;
     text += 'Thank you for your purchase!';
     return text;
   };
@@ -50,9 +58,9 @@ const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, total, onNew
               )}
             </div>
             <div className="text-right">
-                <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
+                <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
                 {item.discount > 0 && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-through">${(item.mrp * item.quantity).toFixed(2)}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 line-through">₹{(item.mrp * item.quantity).toFixed(2)}</p>
                 )}
             </div>
           </div>
@@ -62,11 +70,23 @@ const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, total, onNew
       <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-2">
         <div className="flex justify-between text-slate-600 dark:text-slate-300">
           <span>Subtotal</span>
-          <span className="font-medium">${subtotal.toFixed(2)}</span>
+          <span className="font-medium">₹{subtotal.toFixed(2)}</span>
         </div>
+        {subtotal !== itemsTotal && (
+             <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                <span>Items Total</span>
+                <span className="font-medium">₹{itemsTotal.toFixed(2)}</span>
+            </div>
+        )}
+        {billDiscount > 0 && (
+             <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                <span>Bill Discount</span>
+                <span className="font-medium">-{billDiscount}%</span>
+            </div>
+        )}
         <div className="flex justify-between text-2xl font-bold text-slate-900 dark:text-white mt-2">
-          <span>Total</span>
-          <span>${total.toFixed(2)}</span>
+          <span>Grand Total</span>
+          <span>₹{finalTotal.toFixed(2)}</span>
         </div>
       </div>
       

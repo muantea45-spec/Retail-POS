@@ -1,60 +1,115 @@
-import React, { useState } from 'react';
-import { Product, CartItem } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Product } from '../types';
 import ProductCard from './ProductCard';
-import AddProductForm from './AddProductForm';
-import { PlusIcon } from './icons';
+import { PencilIcon } from './icons';
 
 interface ProductListProps {
   products: Product[];
+  cartItems: { id: number }[];
   onAddToCart: (product: Product) => void;
-  cartItems: CartItem[];
-  onAddProduct: (productData: Omit<Product, 'id'>) => void;
+  onEditProduct: (product: Product) => void;
+  onUpdateCategory: (oldCategory: string, newCategory: string) => void;
 }
 
-const ProductList: React.FC<ProductListProps> = ({ products, onAddToCart, cartItems, onAddProduct }) => {
-  const [showAddForm, setShowAddForm] = useState(false);
+const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToCart, onEditProduct, onUpdateCategory }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [categoryInputValue, setCategoryInputValue] = useState('');
 
-  const handleFormSubmit = (productData: Omit<Product, 'id'>) => {
-    onAddProduct(productData);
-    setShowAddForm(false);
+  const filteredProducts = useMemo(() => {
+    return products.filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [products, searchTerm]);
+  
+  const groupedProducts = useMemo(() => {
+    // FIX: The `reduce` function was not inferring its return type correctly, causing `items` below to be `unknown`.
+    // Providing a generic type argument, `<Record<string, Product[]>>`, explicitly sets the accumulator and return type, resolving the error.
+    return filteredProducts.reduce<Record<string, Product[]>>((acc, product) => {
+      const category = product.category;
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(product);
+      return acc;
+    }, {});
+  }, [filteredProducts]);
+
+  const cartItemIds = useMemo(() => new Set(cartItems.map(item => item.id)), [cartItems]);
+
+  const handleEditCategoryClick = (category: string) => {
+    setEditingCategory(category);
+    setCategoryInputValue(category);
+  };
+
+  const handleCategorySave = () => {
+    if (editingCategory && categoryInputValue.trim() && editingCategory !== categoryInputValue.trim()) {
+        onUpdateCategory(editingCategory, categoryInputValue.trim());
+    }
+    setEditingCategory(null);
   };
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Products</h2>
-        {!showAddForm && (
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex items-center bg-primary-600 hover:bg-primary-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
-          >
-            <PlusIcon className="w-5 h-5 mr-2" />
-            Add Product
-          </button>
-        )}
-      </div>
-
-      {showAddForm && (
-        <AddProductForm
-          onAddProduct={handleFormSubmit}
-          onCancel={() => setShowAddForm(false)}
-        />
-      )}
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-        {products.map(product => {
-          const cartItem = cartItems.find(item => item.id === product.id);
-          const availableStock = product.stock - (cartItem?.quantity || 0);
-          return (
-             <ProductCard 
-              key={product.id} 
-              product={product} 
-              onAddToCart={onAddToCart}
-              availableStock={availableStock}
+        <div className="mb-4 sticky top-20 z-10 bg-slate-50 dark:bg-slate-900 py-2">
+            <input
+                type="text"
+                placeholder="Search products by name or category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
             />
-          )
-        })}
-      </div>
+        </div>
+      
+        {Object.keys(groupedProducts).length > 0 ? (
+            Object.entries(groupedProducts).sort(([catA], [catB]) => catA.localeCompare(catB)).map(([category, items]) => (
+                <div key={category} className="mb-8">
+                    <div className="flex items-center mb-4 pb-2 border-b-2 border-primary-500">
+                      {editingCategory === category ? (
+                        <input
+                          type="text"
+                          value={categoryInputValue}
+                          onChange={(e) => setCategoryInputValue(e.target.value)}
+                          onBlur={handleCategorySave}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleCategorySave();
+                            if (e.key === 'Escape') setEditingCategory(null);
+                          }}
+                          className="text-2xl font-bold bg-transparent text-slate-900 dark:text-white focus:outline-none focus:ring-0 border-0 p-0"
+                          autoFocus
+                        />
+                      ) : (
+                        <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center group">
+                          {category}
+                          <button 
+                            onClick={() => handleEditCategoryClick(category)}
+                            className="ml-3 text-slate-400 opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-primary-600 dark:hover:text-primary-400 transition-opacity"
+                            aria-label={`Edit category ${category}`}
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                        </h2>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        {items.map(product => (
+                            <ProductCard
+                                key={product.id}
+                                product={product}
+                                onAddToCart={onAddToCart}
+                                onEditProduct={onEditProduct}
+                                isInCart={cartItemIds.has(product.id)}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))
+        ) : (
+            <div className="text-center py-10">
+                <p className="text-slate-500 dark:text-slate-400">No products found matching your search.</p>
+            </div>
+        )}
     </div>
   );
 };

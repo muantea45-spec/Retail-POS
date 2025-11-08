@@ -10,10 +10,27 @@ interface CartProps {
   onClearCart: () => void;
   onCheckout: () => void;
   subtotal: number;
-  total: number;
+  itemsTotal: number;
+  finalTotal: number;
+  billDiscount: number;
+  onUpdateBillDiscount: (discount: number) => void;
 }
 
-const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onUpdateDiscount, onRemoveItem, onClearCart, onCheckout, subtotal, total }) => {
+const Cart: React.FC<CartProps> = ({ 
+  items, 
+  onUpdateQuantity, 
+  onUpdateDiscount, 
+  onRemoveItem, 
+  onClearCart, 
+  onCheckout, 
+  subtotal, 
+  itemsTotal,
+  finalTotal,
+  billDiscount,
+  onUpdateBillDiscount,
+}) => {
+  const hasItemDiscounts = items.some(item => item.discount > 0);
+  
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4 sm:p-6 sticky top-24">
       <div className="flex items-center justify-between mb-4 border-b border-slate-200 dark:border-slate-700 pb-3">
@@ -41,13 +58,12 @@ const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onUpdateDiscount, 
             {items.map(item => (
               <div key={item.id} className="flex flex-col space-y-2 border-b border-slate-200 dark:border-slate-700 pb-3 last:border-b-0">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center">
-                     <img src={item.imageUrl} alt={item.name} className="w-12 h-12 rounded-md object-cover mr-4" />
+                  <div className="flex-grow">
                      <div>
                         <p className="font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                          <span className={item.discount > 0 ? 'line-through' : ''}>${item.mrp.toFixed(2)}</span>
-                          {item.discount > 0 && <span className="ml-2 font-bold text-primary-600">${item.price.toFixed(2)}</span>}
+                          <span className={item.discount > 0 ? 'line-through' : ''}>₹{item.mrp.toFixed(2)}</span>
+                          {item.discount > 0 && <span className="ml-2 font-bold text-primary-600">₹{item.price.toFixed(2)}</span>}
                         </p>
                      </div>
                   </div>
@@ -83,12 +99,30 @@ const Cart: React.FC<CartProps> = ({ items, onUpdateQuantity, onUpdateDiscount, 
 
           <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 space-y-2">
             <div className="flex justify-between text-slate-600 dark:text-slate-300">
-              <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>Subtotal (MRP)</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-xl font-bold text-slate-900 dark:text-white">
-              <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+             {(hasItemDiscounts || billDiscount > 0) && (
+                 <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                    <span>Items Total</span>
+                    <span>₹{itemsTotal.toFixed(2)}</span>
+                </div>
+             )}
+            <div className="flex justify-between items-center">
+              <label htmlFor="bill-discount" className="text-slate-600 dark:text-slate-300">Bill Discount (%)</label>
+              <input
+                id="bill-discount"
+                type="number"
+                value={billDiscount.toString()}
+                onChange={(e) => onUpdateBillDiscount(parseInt(e.target.value, 10))}
+                className="w-20 p-1 text-right border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 text-sm focus:ring-primary-500 focus:border-primary-500"
+                min="0"
+                max="100"
+              />
+            </div>
+            <div className="flex justify-between text-2xl font-bold text-slate-900 dark:text-white pt-2">
+              <span>Grand Total</span>
+              <span>₹{finalTotal.toFixed(2)}</span>
             </div>
           </div>
           

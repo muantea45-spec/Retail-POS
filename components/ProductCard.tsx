@@ -1,45 +1,38 @@
 import React from 'react';
 import { Product } from '../types';
+import { PencilIcon } from './icons';
 
 interface ProductCardProps {
   product: Product;
   onAddToCart: (product: Product) => void;
-  availableStock: number;
+  onEditProduct: (product: Product) => void;
+  isInCart: boolean;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, availableStock }) => {
-  const isOutOfStock = product.stock <= 0;
-  const canAddToCart = availableStock > 0 && !isOutOfStock;
-
+const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onEditProduct, isInCart }) => {
   return (
-    <div className={`relative bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden flex flex-col transition-all duration-300 ${isOutOfStock ? 'opacity-50' : 'hover:shadow-xl'}`}>
-      {isOutOfStock && (
-        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full z-10">
-          Out of Stock
+    <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md p-4 flex flex-col justify-between transition-shadow hover:shadow-lg">
+      <div>
+        <div className="flex justify-between items-start">
+            <h3 className="font-bold text-lg text-slate-800 dark:text-slate-200">{product.name}</h3>
+            <button 
+                onClick={() => onEditProduct(product)}
+                className="text-slate-400 hover:text-primary-600 dark:hover:text-primary-400 p-1 -mt-1 -mr-1"
+                aria-label={`Edit ${product.name}`}
+            >
+                <PencilIcon className="w-5 h-5" />
+            </button>
         </div>
-      )}
-      <img src={product.imageUrl} alt={product.name} className="w-full h-32 sm:h-40 object-cover"/>
-      <div className="p-4 flex flex-col flex-grow">
-        <h3 className="font-semibold text-slate-900 dark:text-white flex-grow">{product.name}</h3>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-          {product.stock > 0 ? `${product.stock} in stock` : 'Unavailable'}
-        </p>
-        <div className="flex items-center justify-between mt-4">
-          <span className="text-xl font-bold text-slate-900 dark:text-white">${product.mrp.toFixed(2)}</span>
-          <button
-            onClick={() => onAddToCart(product)}
-            disabled={!canAddToCart}
-            className={`px-4 py-2 rounded-lg text-sm font-bold text-white transition-colors duration-200 ${
-              canAddToCart
-                ? 'bg-primary-600 hover:bg-primary-700'
-                : 'bg-slate-300 dark:bg-slate-600 cursor-not-allowed'
-            }`}
-            aria-label={`Add ${product.name} to cart`}
-          >
-            Add
-          </button>
-        </div>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">{product.category}</p>
+        <p className="text-xl font-semibold text-slate-900 dark:text-white mb-4">₹{product.mrp.toFixed(2)}</p>
       </div>
+      <button
+        onClick={() => onAddToCart(product)}
+        disabled={isInCart}
+        className="w-full bg-primary-600 text-white font-bold py-2 px-4 rounded-md hover:bg-primary-700 transition-colors disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
+      >
+        {isInCart ? 'Added to Cart' : 'Add to Cart'}
+      </button>
     </div>
   );
 };
