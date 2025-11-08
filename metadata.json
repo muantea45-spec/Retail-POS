@@ -1,0 +1,5 @@
+{
+  "name": "Simple Retail POS",
+  "description": "A simple-to-use retail Point of Sale (POS) software with inventory tracking and bill sharing capabilities for WhatsApp or text messages.",
+  "requestFramePermissions": []
+}
