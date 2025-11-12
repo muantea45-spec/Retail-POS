@@ -6,6 +6,7 @@ interface CheckoutProps {
   items: CartItem[];
   onUpdateQuantity: (productId: number, newQuantity: number) => void;
   onUpdateDiscount: (productId: number, discount: number) => void;
+  onUpdateManualDiscount: (productId: number, discount: number) => void;
   onRemoveItem: (productId: number) => void;
   onCheckout: () => void;
   onBackToSale: () => void;
@@ -13,7 +14,9 @@ interface CheckoutProps {
   itemsTotal: number;
   finalTotal: number;
   billDiscount: number;
+  billManualDiscount: number;
   onUpdateBillDiscount: (discount: number) => void;
+  onUpdateBillManualDiscount: (discount: number) => void;
   customerName: string;
   customerAddress: string;
   customerPhone: string;
@@ -27,6 +30,7 @@ const Checkout: React.FC<CheckoutProps> = ({
   items,
   onUpdateQuantity,
   onUpdateDiscount,
+  onUpdateManualDiscount,
   onRemoveItem,
   onCheckout,
   onBackToSale,
@@ -34,7 +38,9 @@ const Checkout: React.FC<CheckoutProps> = ({
   itemsTotal,
   finalTotal,
   billDiscount,
+  billManualDiscount,
   onUpdateBillDiscount,
+  onUpdateBillManualDiscount,
   customerName,
   customerAddress,
   customerPhone,
@@ -43,7 +49,7 @@ const Checkout: React.FC<CheckoutProps> = ({
   setCustomerPhone,
   uniqueCustomers,
 }) => {
-  const hasItemDiscounts = items.some(item => item.discount > 0);
+  const hasItemDiscounts = items.some(item => item.discount > 0 || (item.manualDiscount && item.manualDiscount > 0));
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
@@ -70,6 +76,13 @@ const Checkout: React.FC<CheckoutProps> = ({
     setShowSuggestions(false);
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setCustomerPhone(numericValue);
+  };
+
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center mb-6">
@@ -90,8 +103,8 @@ const Checkout: React.FC<CheckoutProps> = ({
                     <div className="flex-grow">
                         <p className="font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
-                        <span className={item.discount > 0 ? 'line-through' : ''}>₹{item.mrp.toFixed(2)}</span>
-                        {item.discount > 0 && <span className="ml-2 font-bold text-primary-600">₹{item.price.toFixed(2)}</span>}
+                        <span className={(item.discount > 0 || (item.manualDiscount && item.manualDiscount > 0)) ? 'line-through' : ''}>₹{item.mrp.toFixed(2)}</span>
+                        {(item.discount > 0 || (item.manualDiscount && item.manualDiscount > 0)) && <span className="ml-2 font-bold text-primary-600">₹{item.price.toFixed(2)}</span>}
                         </p>
                     </div>
                     <button onClick={() => onRemoveItem(item.id)} className="ml-3 text-slate-400 hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400 transition-colors flex-shrink-0">
@@ -100,17 +113,31 @@ const Checkout: React.FC<CheckoutProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                        <label htmlFor={`checkout-discount-${item.id}`} className="text-xs text-slate-500 dark:text-slate-400 mr-2">Disc %</label>
-                        <input
-                        id={`checkout-discount-${item.id}`}
-                        type="number"
-                        value={item.discount.toString()}
-                        onChange={(e) => onUpdateDiscount(item.id, parseInt(e.target.value, 10))}
-                        className="w-16 p-1 text-center border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 text-sm focus:ring-primary-500 focus:border-primary-500"
-                        min="0"
-                        max="100"
-                        />
+                    <div className="flex items-center gap-x-3">
+                        <div className="flex items-center">
+                            <label htmlFor={`checkout-discount-${item.id}`} className="text-xs text-slate-500 dark:text-slate-400 mr-1">Disc %</label>
+                            <input
+                            id={`checkout-discount-${item.id}`}
+                            type="number"
+                            value={item.discount.toString()}
+                            onChange={(e) => onUpdateDiscount(item.id, parseInt(e.target.value, 10))}
+                            className="w-14 p-1 text-center border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 text-sm focus:ring-primary-500 focus:border-primary-500"
+                            min="0"
+                            max="100"
+                            />
+                        </div>
+                         <div className="flex items-center">
+                            <label htmlFor={`checkout-manual-discount-${item.id}`} className="text-xs text-slate-500 dark:text-slate-400 mr-1">Disc ₹</label>
+                            <input
+                            id={`checkout-manual-discount-${item.id}`}
+                            type="number"
+                            value={item.manualDiscount?.toString() || '0'}
+                            onChange={(e) => onUpdateManualDiscount(item.id, parseFloat(e.target.value))}
+                            className="w-14 p-1 text-center border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 text-sm focus:ring-primary-500 focus:border-primary-500"
+                            min="0"
+                            step="0.01"
+                            />
+                        </div>
                     </div>
                     
                     <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-md">
@@ -118,7 +145,6 @@ const Checkout: React.FC<CheckoutProps> = ({
                         <span className="px-3 text-center text-sm font-medium">{item.quantity}</span>
                         <button 
                         onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} 
-                        disabled={item.quantity >= item.stock}
                         className="px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed">
                         <PlusIcon className="w-4 h-4" />
                         </button>
@@ -133,7 +159,7 @@ const Checkout: React.FC<CheckoutProps> = ({
               <div className="space-y-3 relative">
                   <input 
                     type="text" 
-                    placeholder="Name or Phone" 
+                    placeholder="Name" 
                     value={customerName} 
                     onChange={handleNameChange}
                     onFocus={() => setShowSuggestions(true)}
@@ -156,7 +182,13 @@ const Checkout: React.FC<CheckoutProps> = ({
                     </div>
                   )}
                   <input type="text" placeholder="Address" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" />
-                  <input type="text" placeholder="Phone Number" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" />
+                  <input 
+                    type="tel" 
+                    placeholder="Phone Number" 
+                    value={customerPhone} 
+                    onChange={handlePhoneChange} 
+                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" 
+                  />
               </div>
           </div>
         </div>
@@ -170,10 +202,10 @@ const Checkout: React.FC<CheckoutProps> = ({
                 <span>Subtotal (MRP)</span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
-              {(hasItemDiscounts || billDiscount > 0) && (
+              {(hasItemDiscounts || billDiscount > 0 || billManualDiscount > 0) && (
                   <div className="flex justify-between text-slate-600 dark:text-slate-300 text-lg">
-                      <span>Item Discounts</span>
-                      <span className="text-green-600">- ₹{(subtotal - itemsTotal).toFixed(2)}</span>
+                      <span>Total Discounts</span>
+                      <span className="text-green-600">- ₹{(subtotal - finalTotal).toFixed(2)}</span>
                   </div>
               )}
               <div className="flex justify-between items-center text-lg">
@@ -186,6 +218,18 @@ const Checkout: React.FC<CheckoutProps> = ({
                   className="w-24 p-2 text-right border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
                   min="0"
                   max="100"
+                />
+              </div>
+               <div className="flex justify-between items-center text-lg">
+                <label htmlFor="bill-manual-discount" className="text-slate-600 dark:text-slate-300">Bill Discount (₹)</label>
+                <input
+                  id="bill-manual-discount"
+                  type="number"
+                  value={billManualDiscount.toString()}
+                  onChange={(e) => onUpdateBillManualDiscount(parseFloat(e.target.value))}
+                  className="w-24 p-2 text-right border border-slate-200 dark:border-slate-600 rounded-md bg-slate-50 dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
+                  min="0"
+                  step="0.01"
                 />
               </div>
               <div className="flex justify-between text-3xl font-bold text-slate-900 dark:text-white pt-4 border-t dark:border-slate-700">

@@ -18,7 +18,7 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
   const generateBillText = useCallback(() => {
     let text = '--- FC Store ---\n';
     text += 'Sanpoh Kawn, N. Vanlaiphai\n';
-    text += 'Ph: +91 8787747469\n\n';
+    text += 'Ph: +91 8787747469 / +919383180834\n\n';
     text += `Receipt No: ${sale.receiptNo}\n`;
     text += `Date: ${sale.date.toLocaleString()}\n\n`;
     
@@ -35,10 +35,17 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     text += '--- Items ---\n'
     sale.items.forEach(item => {
       text += `${item.name} (x${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`;
+      const discounts = [];
       if (item.discount > 0) {
-        text += ` (${item.discount}% off MRP ₹${item.mrp.toFixed(2)})\n`;
+        discounts.push(`${item.discount}% off`);
+      }
+      if (item.manualDiscount && item.manualDiscount > 0) {
+        discounts.push(`₹${item.manualDiscount.toFixed(2)} off`);
+      }
+      if (discounts.length > 0) {
+          text += ` (${discounts.join(', ')} of MRP ₹${item.mrp.toFixed(2)})\n`;
       } else {
-        text += '\n';
+          text += '\n';
       }
     });
     text += '\n-------------------\n';
@@ -49,8 +56,11 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     if (sale.billDiscount > 0) {
       text += `Bill Discount: ${sale.billDiscount}%\n`;
     }
+    if (sale.billManualDiscount && sale.billManualDiscount > 0) {
+        text += `Bill Discount (Flat): -₹${sale.billManualDiscount.toFixed(2)}\n`;
+    }
     text += `Grand Total: ₹${sale.finalTotal.toFixed(2)}\n\n`;
-    text += 'Thank you for your purchase!';
+    text += 'KAN LAWM E';
     return text;
   }, [sale]);
 
@@ -109,7 +119,7 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
             <BillDetails sale={sale} />
         </div>
       
-        <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print">
+        <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print sticky bottom-0">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Customize & Share Bill</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Edit the message below before sharing, or create a shareable link.</p>
             <textarea

@@ -83,7 +83,6 @@ const Cart: React.FC<CartProps> = ({
                       <span className="px-3 text-center text-sm font-medium">{item.quantity}</span>
                       <button 
                         onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} 
-                        disabled={item.quantity >= item.stock}
                         className="px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed">
                         <PlusIcon className="w-4 h-4" />
                       </button>

@@ -23,14 +23,13 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, onEditP
                 <PencilIcon className="w-5 h-5" />
             </button>
         </div>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">{product.category}</p>
-        <div className="flex justify-between items-baseline mb-4">
+        <div className="flex justify-between items-baseline mb-4 mt-2">
             <p className="text-xl font-semibold text-slate-900 dark:text-white">₹{product.mrp.toFixed(2)}</p>
         </div>
       </div>
       <button
         onClick={() => onAddToCart(product)}
-        disabled={isInCart || product.stock <= 0}
+        disabled={isInCart}
         className="w-full bg-primary-600 text-white font-bold py-2 px-4 rounded-md hover:bg-primary-700 transition-colors disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed"
       >
         {isInCart ? 'Added to Cart' : 'Add to Cart'}

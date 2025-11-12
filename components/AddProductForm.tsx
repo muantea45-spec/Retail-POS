@@ -4,36 +4,28 @@ import { XMarkIcon } from './icons';
 
 interface AddProductFormProps {
   onAddProduct: (product: Omit<Product, 'id'>) => void;
-  categories: string[];
   onClose: () => void;
 }
 
-const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, categories, onClose }) => {
+const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, onClose }) => {
   const [name, setName] = useState('');
   const [mrp, setMrp] = useState('');
-  const [category, setCategory] = useState('');
-  const [stock, setStock] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !mrp || !category.trim() || !stock) {
+    if (!name.trim() || !mrp) {
       setError('All fields are required.');
       return;
     }
     const mrpValue = parseFloat(mrp);
-    const stockValue = parseInt(stock, 10);
 
     if (isNaN(mrpValue) || mrpValue <= 0) {
       setError('Please enter a valid MRP.');
       return;
     }
-    if (isNaN(stockValue) || stockValue < 0) {
-        setError('Please enter a valid stock quantity.');
-        return;
-    }
 
-    onAddProduct({ name, mrp: mrpValue, category, stock: stockValue });
+    onAddProduct({ name, mrp: mrpValue });
     // Parent component will handle closing the sidebar.
   };
 
@@ -64,21 +56,6 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, categorie
                 />
             </div>
             <div>
-                <label htmlFor="new-category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-                <input
-                  id="new-category"
-                  type="text"
-                  placeholder="e.g., Biscuits & Snacks"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
-                  list="categories-list"
-                />
-                <datalist id="categories-list">
-                    {categories.map((cat) => <option key={cat} value={cat} />)}
-                </datalist>
-            </div>
-            <div>
                 <label htmlFor="new-mrp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">MRP (₹)</label>
                 <input
                   id="new-mrp"
@@ -89,19 +66,6 @@ const AddProductForm: React.FC<AddProductFormProps> = ({ onAddProduct, categorie
                   className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
                   min="0.01"
                   step="0.01"
-                />
-            </div>
-            <div>
-                <label htmlFor="new-stock" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Stock Quantity</label>
-                <input
-                  id="new-stock"
-                  type="number"
-                  placeholder="e.g., 50"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
-                  className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-800 focus:ring-primary-500 focus:border-primary-500"
-                  min="0"
-                  step="1"
                 />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}

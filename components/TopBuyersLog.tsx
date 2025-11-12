@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { Sale } from '../types';
 import { TrophyIcon } from './icons';
 
-interface TopBuyersLogProps {
+interface TopCustomersProps {
   sales: Sale[];
 }
 
@@ -13,7 +13,7 @@ type BuyerData = {
   totalTransactions: number;
 };
 
-const TopBuyersLog: React.FC<TopBuyersLogProps> = ({ sales }) => {
+const TopCustomers: React.FC<TopCustomersProps> = ({ sales }) => {
 
   const topBuyers = useMemo((): BuyerData[] => {
     const buyersMap = new Map<string, BuyerData>();
@@ -43,7 +43,7 @@ const TopBuyersLog: React.FC<TopBuyersLogProps> = ({ sales }) => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">Top Buyers</h2>
+      <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">Top Customers</h2>
       {topBuyers.length === 0 ? (
         <div className="text-center py-16 bg-white dark:bg-slate-800 rounded-lg shadow">
           <TrophyIcon className="w-16 h-16 mx-auto text-slate-400 dark:text-slate-500" />
@@ -84,4 +84,4 @@ const TopBuyersLog: React.FC<TopBuyersLogProps> = ({ sales }) => {
   );
 };
 
-export default TopBuyersLog;
+export default TopCustomers;

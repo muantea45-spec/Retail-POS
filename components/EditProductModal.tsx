@@ -6,22 +6,17 @@ interface EditProductModalProps {
   product: Product | null;
   onUpdateProduct: (product: Product) => void;
   onClose: () => void;
-  categories: string[];
 }
 
-const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdateProduct, onClose, categories }) => {
+const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdateProduct, onClose }) => {
   const [name, setName] = useState('');
   const [mrp, setMrp] = useState('');
-  const [category, setCategory] = useState('');
-  const [stock, setStock] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (product) {
       setName(product.name);
       setMrp(product.mrp.toString());
-      setCategory(product.category);
-      setStock(product.stock.toString());
       setError('');
     }
   }, [product]);
@@ -32,23 +27,18 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !mrp || !category.trim() || !stock) {
+    if (!name.trim() || !mrp) {
       setError('All fields are required.');
       return;
     }
     const mrpValue = parseFloat(mrp);
-    const stockValue = parseInt(stock, 10);
 
     if (isNaN(mrpValue) || mrpValue <= 0) {
       setError('Please enter a valid MRP.');
       return;
     }
-    if (isNaN(stockValue) || stockValue < 0) {
-        setError('Please enter a valid stock quantity.');
-        return;
-    }
 
-    onUpdateProduct({ ...product, name, mrp: mrpValue, category, stock: stockValue });
+    onUpdateProduct({ ...product, name, mrp: mrpValue });
     onClose();
   };
   
@@ -84,20 +74,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
             />
           </div>
           <div>
-            <label htmlFor="edit-category" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Category</label>
-            <input
-              id="edit-category"
-              type="text"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
-              list="categories-list-edit"
-            />
-             <datalist id="categories-list-edit">
-                {categories.map((cat) => <option key={cat} value={cat} />)}
-            </datalist>
-          </div>
-          <div>
             <label htmlFor="edit-mrp" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">MRP (₹)</label>
             <input
               id="edit-mrp"
@@ -107,18 +83,6 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
               className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
               min="0.01"
               step="0.01"
-            />
-          </div>
-          <div>
-            <label htmlFor="edit-stock" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Stock Quantity</label>
-            <input
-              id="edit-stock"
-              type="number"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
-              min="0"
-              step="1"
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}

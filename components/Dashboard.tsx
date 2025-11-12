@@ -8,7 +8,7 @@ type ItemSaleData = {
   totalRevenue: number;
 };
 
-type SortConfig = {
+type ItemSortConfig = {
     key: keyof ItemSaleData;
     direction: 'ascending' | 'descending';
 };
@@ -18,71 +18,113 @@ interface DashboardProps {
     products: Product[];
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
-    const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'totalRevenue', direction: 'descending' });
+const getStartOfWeek = (date: Date): Date => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day;
+    d.setHours(0, 0, 0, 0);
+    return new Date(d.setDate(diff));
+};
 
-    const itemSalesData = useMemo((): ItemSaleData[] => {
-        const salesMap = new Map<number, { quantitySold: number; totalRevenue: number }>();
+const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
+    const [itemSortConfig, setItemSortConfig] = useState<ItemSortConfig>({ key: 'totalRevenue', direction: 'descending' });
+    const [selectedPeriod, setSelectedPeriod] = useState('all-time');
+
+    const filterOptions = useMemo(() => {
+        const months = new Map<string, string>();
+        const weeks = new Map<string, { start: Date, end: Date }>();
 
         sales.forEach(sale => {
-            sale.items.forEach(item => {
-                const existing = salesMap.get(item.id) || { quantitySold: 0, totalRevenue: 0 };
-                existing.quantitySold += item.quantity;
-                existing.totalRevenue += item.price * item.quantity;
-                salesMap.set(item.id, existing);
-            });
-        });
-
-        const productsMap = new Map<number, Product>(products.map(p => [p.id, p]));
-        const allProductIds = new Set([...salesMap.keys(), ...productsMap.keys()]);
-        
-        const data: ItemSaleData[] = [];
-        allProductIds.forEach(id => {
-            const product = productsMap.get(id);
-            if (product) {
-                 const saleData = salesMap.get(id) || { quantitySold: 0, totalRevenue: 0 };
-                 data.push({
-                     productId: id,
-                     name: product.name,
-                     quantitySold: saleData.quantitySold,
-                     totalRevenue: saleData.totalRevenue,
-                 });
+            const saleDate = new Date(sale.date);
+            const monthKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`;
+            if (!months.has(monthKey)) {
+                months.set(monthKey, saleDate.toLocaleString('default', { month: 'long', year: 'numeric' }));
+            }
+            const startOfWeek = getStartOfWeek(saleDate);
+            const weekKey = startOfWeek.toISOString().split('T')[0];
+            if (!weeks.has(weekKey)) {
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                weeks.set(weekKey, { start: startOfWeek, end: endOfWeek });
             }
         });
+        
+        const sortedMonths = Array.from(months.entries()).sort((a,b) => b[0].localeCompare(a[0]));
+        const sortedWeeks = Array.from(weeks.entries()).sort((a, b) => b[0].localeCompare(a[0]));
 
-        return data;
-    }, [sales, products]);
+        return { months: sortedMonths, weeks: sortedWeeks };
+    }, [sales]);
 
-    const sortedItems = useMemo(() => {
-        let sortableItems = [...itemSalesData];
-        if (sortConfig !== null) {
-            sortableItems.sort((a, b) => {
-                if (a[sortConfig.key] < b[sortConfig.key]) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (a[sortConfig.key] > b[sortConfig.key]) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                // Secondary sort by name for consistent ordering
-                if (a.name < b.name) return -1;
-                if (a.name > b.name) return 1;
-                return 0;
+    const filteredSales = useMemo(() => {
+        if (selectedPeriod === 'all-time') return sales;
+        if (selectedPeriod.startsWith('month-')) {
+            const [_, year, month] = selectedPeriod.split('-');
+            return sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate.getFullYear() === parseInt(year) && saleDate.getMonth() + 1 === parseInt(month);
             });
         }
-        return sortableItems;
-    }, [itemSalesData, sortConfig]);
+        if (selectedPeriod.startsWith('week-')) {
+            const weekKey = selectedPeriod.substring(5);
+            const week = filterOptions.weeks.find(([key]) => key === weekKey);
+            if (!week) return [];
+            const startDate = week[1].start;
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 7);
+            return sales.filter(sale => {
+                const saleDate = new Date(sale.date);
+                return saleDate >= startDate && saleDate < endDate;
+            });
+        }
+        return sales;
+    }, [sales, selectedPeriod, filterOptions.weeks]);
+
+    const itemSalesData = useMemo(() => {
+        const itemSalesMap = new Map<number, { quantitySold: number; totalRevenue: number }>();
+
+        filteredSales.forEach(sale => {
+            sale.items.forEach(item => {
+                const itemExisting = itemSalesMap.get(item.id) || { quantitySold: 0, totalRevenue: 0 };
+                itemExisting.quantitySold += item.quantity;
+                itemExisting.totalRevenue += item.price * item.quantity;
+                itemSalesMap.set(item.id, itemExisting);
+            });
+        });
+
+        const itemData: ItemSaleData[] = [];
+        products.forEach(product => {
+            const saleData = itemSalesMap.get(product.id) || { quantitySold: 0, totalRevenue: 0 };
+            itemData.push({
+                productId: product.id,
+                name: product.name,
+                ...saleData
+            });
+        });
+        
+        return itemData;
+    }, [filteredSales, products]);
+
+    const sortedItems = useMemo(() => {
+        return [...itemSalesData].sort((a, b) => {
+            if (a[itemSortConfig.key] < b[itemSortConfig.key]) return itemSortConfig.direction === 'ascending' ? -1 : 1;
+            if (a[itemSortConfig.key] > b[itemSortConfig.key]) return itemSortConfig.direction === 'ascending' ? 1 : -1;
+            return a.name.localeCompare(b.name);
+        });
+    }, [itemSalesData, itemSortConfig]);
 
     const requestSort = (key: keyof ItemSaleData) => {
         let direction: 'ascending' | 'descending' = 'ascending';
-        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+        if (itemSortConfig.key === key && itemSortConfig.direction === 'ascending') {
             direction = 'descending';
         }
-        setSortConfig({ key, direction });
+        setItemSortConfig({ key, direction });
     };
 
     const getSortIndicator = (key: keyof ItemSaleData) => {
-        if (!sortConfig || sortConfig.key !== key) return null;
-        return sortConfig.direction === 'ascending' ? '▲' : '▼';
+        if (itemSortConfig.key === key) {
+            return itemSortConfig.direction === 'ascending' ? '▲' : '▼';
+        }
+        return null;
     };
 
     const totalRevenue = itemSalesData.reduce((acc, item) => acc + item.totalRevenue, 0);
@@ -91,7 +133,29 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">Sales Dashboard</h2>
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Sales Dashboard</h2>
+              <div className="w-full sm:w-auto">
+                <select 
+                  id="period-filter"
+                  value={selectedPeriod}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                  className="w-full sm:w-64 p-2 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+                >
+                  <option value="all-time">All Time</option>
+                  {filterOptions.months.length > 0 && <optgroup label="By Month">
+                    {filterOptions.months.map(([key, label]) => <option key={key} value={`month-${key}`}>{label}</option>)}
+                  </optgroup>}
+                  {filterOptions.weeks.length > 0 && <optgroup label="By Week">
+                    {filterOptions.weeks.map(([key, { start }]) => (
+                      <option key={key} value={`week-${key}`}>
+                        Week of {start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </option>
+                    ))}
+                  </optgroup>}
+                </select>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md">
@@ -108,39 +172,30 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-x-auto">
-                <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-slate-50 dark:bg-slate-700/50">
-                        <tr>
-                            <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer" onClick={() => requestSort('name')}>
-                                Product Name <span className="text-slate-400">{getSortIndicator('name')}</span>
-                            </th>
-                            <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('quantitySold')}>
-                                Qty Sold <span className="text-slate-400">{getSortIndicator('quantitySold')}</span>
-                            </th>
-                            <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('totalRevenue')}>
-                                Total Revenue <span className="text-slate-400">{getSortIndicator('totalRevenue')}</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedItems.length === 0 ? (
+            <div className="bg-white dark:bg-slate-800 rounded-lg shadow-md">
+                <h3 className="p-4 text-xl font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700">Product Performance</h3>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50">
                             <tr>
-                                <td colSpan={3} className="text-center p-8 text-slate-500 dark:text-slate-400">
-                                    No product data to display. Add some products and make a sale!
-                                </td>
+                                <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer" onClick={() => requestSort('name')}>Product <span className="text-slate-400">{getSortIndicator('name')}</span></th>
+                                <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('quantitySold')}>Qty Sold <span className="text-slate-400">{getSortIndicator('quantitySold')}</span></th>
+                                <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('totalRevenue')}>Revenue <span className="text-slate-400">{getSortIndicator('totalRevenue')}</span></th>
                             </tr>
-                        ) : (
-                            sortedItems.map((item) => (
+                        </thead>
+                        <tbody>
+                            {sortedItems.filter(i => i.quantitySold > 0 || i.totalRevenue > 0).length > 0 ? sortedItems.map((item) => (
                                 <tr key={item.productId} className="border-b border-slate-200 dark:border-slate-700 last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                     <td className="p-4 text-slate-800 dark:text-slate-200 font-medium">{item.name}</td>
                                     <td className="p-4 text-slate-600 dark:text-slate-300 text-right">{item.quantitySold}</td>
                                     <td className="p-4 text-slate-600 dark:text-slate-300 text-right">₹{item.totalRevenue.toFixed(2)}</td>
                                 </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
+                            )) : (
+                              <tr><td colSpan={3} className="text-center p-8 text-slate-500 dark:text-slate-400">No product sales data for this period.</td></tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );

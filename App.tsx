@@ -8,16 +8,17 @@ import EditProductModal from './components/EditProductModal';
 import AddProductForm from './components/AddProductForm';
 import SalesLog from './components/SalesLog';
 import Dashboard from './components/Dashboard';
-import TopBuyersLog from './components/TopBuyersLog';
+import TopCustomers from './components/TopBuyersLog';
 import Checkout from './components/Checkout';
 import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon, TrophyIcon } from './components/icons';
 
-type View = 'sale' | 'checkout' | 'bill' | 'log' | 'dashboard' | 'top-buyers';
+type View = 'sale' | 'checkout' | 'bill' | 'log' | 'dashboard' | 'top-customers';
 
 function App() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [billDiscount, setBillDiscount] = useState(0);
+  const [billManualDiscount, setBillManualDiscount] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -87,14 +88,11 @@ function App() {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  const categories = useMemo(() => [...new Set(products.map(p => p.category))].sort(), [products]);
-
   const handleAddToCart = useCallback((product: Product) => {
-    if (product.stock <= 0) return; // Safeguard
     setCartItems(prevItems => {
       const existingItem = prevItems.find(item => item.id === product.id);
       if (existingItem) return prevItems;
-      return [...prevItems, { ...product, quantity: 1, discount: 0, price: product.mrp }];
+      return [...prevItems, { ...product, quantity: 1, discount: 0, manualDiscount: 0, price: product.mrp }];
     });
   }, []);
 
@@ -107,25 +105,35 @@ function App() {
       handleRemoveItem(productId);
       return;
     }
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
-
     setCartItems(prevItems => 
       prevItems.map(item => 
         item.id === productId 
-          ? { ...item, quantity: Math.min(newQuantity, product.stock) }
+          ? { ...item, quantity: newQuantity }
           : item
       )
     );
-  }, [products, handleRemoveItem]);
+  }, [handleRemoveItem]);
 
   const handleUpdateDiscount = useCallback((productId: number, discount: number) => {
     const newDiscount = Math.max(0, Math.min(100, isNaN(discount) ? 0 : discount));
     setCartItems(prevItems => 
       prevItems.map(item => {
         if (item.id === productId) {
-          const newPrice = item.mrp * (1 - newDiscount / 100);
-          return { ...item, discount: newDiscount, price: newPrice };
+          const newPrice = (item.mrp * (1 - newDiscount / 100)) - (item.manualDiscount || 0);
+          return { ...item, discount: newDiscount, price: Math.max(0, newPrice) };
+        }
+        return item;
+      })
+    );
+  }, []);
+
+  const handleUpdateManualDiscount = useCallback((productId: number, manualDiscount: number) => {
+    const newManualDiscount = Math.max(0, isNaN(manualDiscount) ? 0 : manualDiscount);
+    setCartItems(prevItems =>
+      prevItems.map(item => {
+        if (item.id === productId) {
+          const newPrice = (item.mrp * (1 - (item.discount || 0) / 100)) - newManualDiscount;
+          return { ...item, manualDiscount: newManualDiscount, price: Math.max(0, newPrice) };
         }
         return item;
       })
@@ -135,6 +143,7 @@ function App() {
   const handleClearCart = useCallback(() => {
     setCartItems([]);
     setBillDiscount(0);
+    setBillManualDiscount(0);
     setCustomerName('');
     setCustomerAddress('');
     setCustomerPhone('');
@@ -143,9 +152,10 @@ function App() {
   const { subtotal, itemsTotal, finalTotal } = useMemo(() => {
     const subtotal = cartItems.reduce((acc, item) => acc + (item.mrp * item.quantity), 0);
     const itemsTotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    const finalTotal = itemsTotal * (1 - billDiscount / 100);
+    const totalAfterPercentage = itemsTotal * (1 - billDiscount / 100);
+    const finalTotal = Math.max(0, totalAfterPercentage - billManualDiscount);
     return { subtotal, itemsTotal, finalTotal };
-  }, [cartItems, billDiscount]);
+  }, [cartItems, billDiscount, billManualDiscount]);
 
   const handleProceedToCheckout = () => {
     if (cartItems.length > 0) {
@@ -155,8 +165,19 @@ function App() {
 
   const handleCheckout = useCallback(() => {
     if (cartItems.length > 0) {
-      const receiptNo = `REC-${String(salesLog.length + 1).padStart(4, '0')}`;
-      // Create and record the sale
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = today.getMonth() + 1;
+
+      // Filter sales for the current month and year to get the correct sequence number
+      const salesInCurrentMonth = salesLog.filter(sale => {
+        const saleDate = new Date(sale.date);
+        return saleDate.getFullYear() === year && (saleDate.getMonth() + 1) === month;
+      });
+      const nextReceiptNumber = salesInCurrentMonth.length + 1;
+
+      const receiptNo = `FC/${year}/${String(month).padStart(2, '0')}/${String(nextReceiptNumber).padStart(4, '0')}`;
+      
       const newSale: Sale = {
         id: Date.now(),
         receiptNo,
@@ -166,27 +187,16 @@ function App() {
         itemsTotal,
         finalTotal,
         billDiscount,
+        billManualDiscount,
         customerName: customerName.trim(),
         customerAddress: customerAddress.trim(),
         customerPhone: customerPhone.trim(),
       };
       setSalesLog(prev => [newSale, ...prev]);
       setCurrentSale(newSale);
-      
-      // Decrement stock
-      setProducts(prevProducts => {
-        const productsMap = new Map(prevProducts.map(p => [p.id, p]));
-        cartItems.forEach(item => {
-          const product = productsMap.get(item.id);
-          if (product) {
-            productsMap.set(item.id, { ...product, stock: product.stock - item.quantity });
-          }
-        });
-        return Array.from(productsMap.values());
-      });
       setView('bill');
     }
-  }, [cartItems, subtotal, itemsTotal, finalTotal, billDiscount, customerName, customerAddress, customerPhone, salesLog.length]);
+  }, [cartItems, subtotal, itemsTotal, finalTotal, billDiscount, billManualDiscount, customerName, customerAddress, customerPhone, salesLog]);
 
   const handleNewSale = useCallback(() => {
     handleClearCart();
@@ -211,13 +221,13 @@ function App() {
         const newCartItems: CartItem[] = [];
         for (const item of prevItems) {
             if (item.id === updatedProduct.id) {
-                const newPrice = updatedProduct.mrp * (1 - item.discount / 100);
-                const newQuantity = Math.min(item.quantity, updatedProduct.stock);
-                if (newQuantity >= 1) {
+                const newPrice = updatedProduct.mrp * (1 - item.discount / 100) - (item.manualDiscount || 0);
+                if (item.quantity >= 1) {
                     const newCartItem: CartItem = {
                       ...updatedProduct,
-                      quantity: newQuantity,
+                      quantity: item.quantity,
                       discount: item.discount,
+                      manualDiscount: item.manualDiscount || 0,
                       price: newPrice,
                     };
                     newCartItems.push(newCartItem);
@@ -230,16 +240,14 @@ function App() {
     });
   }, []);
   
-  const handleUpdateCategory = useCallback((oldCategory: string, newCategory: string) => {
-    const trimmedNewCategory = newCategory.trim();
-    if (!trimmedNewCategory || categories.includes(trimmedNewCategory)) return;
-    setProducts(prev => prev.map(p => p.category === oldCategory ? { ...p, category: trimmedNewCategory } : p));
-    setCartItems(prev => prev.map(item => item.category === oldCategory ? { ...item, category: trimmedNewCategory } : item));
-  }, [categories]);
-
   const handleUpdateBillDiscount = useCallback((discount: number) => {
     setBillDiscount(Math.max(0, Math.min(100, isNaN(discount) ? 0 : discount)));
   }, []);
+
+  const handleUpdateBillManualDiscount = useCallback((discount: number) => {
+    setBillManualDiscount(Math.max(0, isNaN(discount) ? 0 : discount));
+  }, []);
+
 
   const uniqueCustomers = useMemo((): Customer[] => {
     const customers = new Map<string, Customer>();
@@ -272,8 +280,6 @@ function App() {
                           cartItems={cartItems}
                           onAddToCart={handleAddToCart}
                           onEditProduct={setEditingProduct}
-                          onUpdateCategory={handleUpdateCategory}
-                          categories={categories}
                       />
                     </div>
                     <div className="hidden lg:block">
@@ -313,12 +319,15 @@ function App() {
                 items={cartItems}
                 onUpdateQuantity={handleUpdateQuantity}
                 onUpdateDiscount={handleUpdateDiscount}
+                onUpdateManualDiscount={handleUpdateManualDiscount}
                 onRemoveItem={handleRemoveItem}
                 subtotal={subtotal}
                 itemsTotal={itemsTotal}
                 finalTotal={finalTotal}
                 billDiscount={billDiscount}
+                billManualDiscount={billManualDiscount}
                 onUpdateBillDiscount={handleUpdateBillDiscount}
+                onUpdateBillManualDiscount={handleUpdateBillManualDiscount}
                 customerName={customerName}
                 customerAddress={customerAddress}
                 customerPhone={customerPhone}
@@ -340,8 +349,8 @@ function App() {
             return <SalesLog sales={salesLog} />;
         case 'dashboard':
             return <Dashboard sales={salesLog} products={products} />;
-        case 'top-buyers':
-            return <TopBuyersLog sales={salesLog} />;
+        case 'top-customers':
+            return <TopCustomers sales={salesLog} />;
         default:
             return null;
     }
@@ -359,7 +368,7 @@ function App() {
               <h1 className="text-2xl sm:text-3xl font-bold text-primary-600">FC Store</h1>
             </button>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Sanpoh Kawn, N. Vanlaiphai</p>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: 8787747469 / 9383180834</p>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: +91 8787747469 / +919383180834</p>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
              <button
@@ -387,9 +396,9 @@ function App() {
                     <ChartBarIcon className="w-6 h-6" />
                 </button>
                  <button
-                    onClick={() => setView('top-buyers')}
+                    onClick={() => setView('top-customers')}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    aria-label="View Top Buyers"
+                    aria-label="View Top Customers"
                 >
                     <TrophyIcon className="w-6 h-6" />
                 </button>
@@ -436,7 +445,6 @@ function App() {
         product={editingProduct}
         onUpdateProduct={handleUpdateProduct}
         onClose={() => setEditingProduct(null)}
-        categories={categories}
       />
       
       {isAddProductOpen && (
@@ -454,7 +462,6 @@ function App() {
       >
         <AddProductForm 
             onAddProduct={handleAddProduct}
-            categories={categories}
             onClose={() => setIsAddProductOpen(false)}
         />
       </div>

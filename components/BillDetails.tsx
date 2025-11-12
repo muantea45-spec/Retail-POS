@@ -11,7 +11,7 @@ const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
             <div className="text-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-700">
                 <h2 className="text-xl sm:text-2xl font-bold text-primary-600">FC Store</h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Sanpoh Kawn, N. Vanlaiphai</p>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: +91 8787747469</p>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: +91 8787747469 / +919383180834</p>
                 <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-500 mt-2">
                     <span className="font-mono">Receipt: {sale.receiptNo}</span>
                     <span>{sale.date.toLocaleString()}</span>
@@ -66,6 +66,9 @@ const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
                             {item.discount > 0 && (
                                 <p className="text-xs text-green-600 dark:text-green-400">{item.discount}% discount applied</p>
                             )}
+                            {item.manualDiscount && item.manualDiscount > 0 && (
+                                <p className="text-xs text-green-600 dark:text-green-400">₹{item.manualDiscount.toFixed(2)} discount applied</p>
+                            )}
                         </div>
                         <div className="text-right">
                             <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
@@ -90,8 +93,14 @@ const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
                 )}
                 {sale.billDiscount > 0 && (
                     <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                        <span>Bill Discount</span>
+                        <span>Bill Discount (%)</span>
                         <span className="font-medium">-{sale.billDiscount}%</span>
+                    </div>
+                )}
+                {sale.billManualDiscount && sale.billManualDiscount > 0 && (
+                     <div className="flex justify-between text-slate-600 dark:text-slate-300">
+                        <span>Bill Discount (Flat)</span>
+                        <span className="font-medium">- ₹{sale.billManualDiscount.toFixed(2)}</span>
                     </div>
                 )}
                 <div className="flex justify-between text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-2">
