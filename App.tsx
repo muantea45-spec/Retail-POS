@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Product, CartItem, Sale } from './types';
+import { Product, CartItem, Sale, Customer } from './types';
 import { INITIAL_PRODUCTS } from './constants';
 import ProductList from './components/ProductList';
 import Cart from './components/Cart';
@@ -8,9 +8,10 @@ import EditProductModal from './components/EditProductModal';
 import AddProductForm from './components/AddProductForm';
 import SalesLog from './components/SalesLog';
 import Dashboard from './components/Dashboard';
-import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon } from './components/icons';
+import TopBuyersLog from './components/TopBuyersLog';
+import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon, TrophyIcon } from './components/icons';
 
-type View = 'sale' | 'bill' | 'log' | 'dashboard';
+type View = 'sale' | 'bill' | 'log' | 'dashboard' | 'top-buyers';
 
 function App() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -24,6 +25,7 @@ function App() {
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [salesLog, setSalesLog] = useState<Sale[]>([]);
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false);
   
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('theme')) {
@@ -234,42 +236,105 @@ function App() {
     setBillDiscount(Math.max(0, Math.min(100, isNaN(discount) ? 0 : discount)));
   }, []);
 
+  const uniqueCustomers = useMemo((): Customer[] => {
+    const customers = new Map<string, Customer>();
+    salesLog.forEach(sale => {
+      const name = sale.customerName?.trim();
+      const phone = sale.customerPhone?.trim();
+      if (name && phone) {
+        const key = `${name.toLowerCase()}|${phone}`;
+        if (!customers.has(key)) {
+          customers.set(key, {
+            name,
+            phone,
+            address: sale.customerAddress?.trim() || '',
+          });
+        }
+      }
+    });
+    return Array.from(customers.values());
+  }, [salesLog]);
+
   const renderView = () => {
+    const cartProps = {
+      items: cartItems,
+      onUpdateQuantity: handleUpdateQuantity,
+      onUpdateDiscount: handleUpdateDiscount,
+      onRemoveItem: handleRemoveItem,
+      onClearCart: handleClearCart,
+      subtotal: subtotal,
+      itemsTotal: itemsTotal,
+      finalTotal: finalTotal,
+      billDiscount: billDiscount,
+      onUpdateBillDiscount: handleUpdateBillDiscount,
+      customerName: customerName,
+      customerAddress: customerAddress,
+      customerPhone: customerPhone,
+      setCustomerName: setCustomerName,
+      setCustomerAddress: setCustomerAddress,
+      setCustomerPhone: setCustomerPhone,
+      uniqueCustomers: uniqueCustomers,
+    };
+
     switch(view) {
         case 'sale':
             return (
+              <>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                     <div className="lg:col-span-2">
-                    <ProductList 
-                        products={products} 
-                        cartItems={cartItems}
-                        onAddToCart={handleAddToCart}
-                        onEditProduct={setEditingProduct}
-                        onUpdateCategory={handleUpdateCategory}
-                    />
+                      <ProductList 
+                          products={products} 
+                          cartItems={cartItems}
+                          onAddToCart={handleAddToCart}
+                          onEditProduct={setEditingProduct}
+                          onUpdateCategory={handleUpdateCategory}
+                          categories={categories}
+                      />
                     </div>
-                    <div>
-                    <Cart 
-                        items={cartItems}
-                        onUpdateQuantity={handleUpdateQuantity}
-                        onUpdateDiscount={handleUpdateDiscount}
-                        onRemoveItem={handleRemoveItem}
-                        onClearCart={handleClearCart}
-                        onCheckout={handleCheckout}
-                        subtotal={subtotal}
-                        itemsTotal={itemsTotal}
-                        finalTotal={finalTotal}
-                        billDiscount={billDiscount}
-                        onUpdateBillDiscount={handleUpdateBillDiscount}
-                        customerName={customerName}
-                        customerAddress={customerAddress}
-                        customerPhone={customerPhone}
-                        setCustomerName={setCustomerName}
-                        setCustomerAddress={setCustomerAddress}
-                        setCustomerPhone={setCustomerPhone}
-                    />
+                    <div className="hidden lg:block">
+                      <Cart {...cartProps} onCheckout={handleCheckout} />
                     </div>
                 </div>
+
+                {/* Mobile Cart FAB */}
+                <div className="lg:hidden fixed bottom-6 right-6 z-20">
+                    <button
+                        onClick={() => setIsCartModalOpen(true)}
+                        className="bg-primary-600 text-white rounded-full p-4 shadow-lg hover:bg-primary-700 transition-transform transform hover:scale-105"
+                        aria-label={`Open cart with ${cartItems.length} items`}
+                    >
+                        <ShoppingCartIcon className="w-8 h-8" />
+                        {cartItems.length > 0 && (
+                            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                                {cartItems.length}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Mobile Cart Modal */}
+                {isCartModalOpen && (
+                    <div 
+                        className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+                        onClick={() => setIsCartModalOpen(false)}
+                        aria-hidden="true"
+                    >
+                        <div
+                            className="absolute bottom-0 left-0 right-0 bg-slate-50 dark:bg-slate-900 rounded-t-2xl max-h-[90vh] flex flex-col"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <Cart 
+                                {...cartProps}
+                                onCheckout={() => {
+                                    handleCheckout();
+                                    setIsCartModalOpen(false);
+                                }}
+                                onClose={() => setIsCartModalOpen(false)}
+                            />
+                        </div>
+                    </div>
+                )}
+              </>
             );
         case 'bill':
             return currentSale ? (
@@ -282,6 +347,8 @@ function App() {
             return <SalesLog sales={salesLog} />;
         case 'dashboard':
             return <Dashboard sales={salesLog} products={products} />;
+        case 'top-buyers':
+            return <TopBuyersLog sales={salesLog} />;
         default:
             return null;
     }
@@ -292,7 +359,9 @@ function App() {
       <header className="bg-white dark:bg-slate-800 shadow-md sticky top-0 z-20 no-print">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-start sm:items-center">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-primary-600">FC Store</h1>
+            <button onClick={() => setView('sale')} className="text-left">
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary-600">FC Store</h1>
+            </button>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Sanpoh Kawn, N. Vanlaiphai</p>
             <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: 8787747469 / 9383180834</p>
           </div>
@@ -321,9 +390,16 @@ function App() {
                 >
                     <ChartBarIcon className="w-6 h-6" />
                 </button>
+                 <button
+                    onClick={() => setView('top-buyers')}
+                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    aria-label="View Top Buyers"
+                >
+                    <TrophyIcon className="w-6 h-6" />
+                </button>
               </>
             )}
-            {(view === 'log' || view === 'bill' || view === 'dashboard') && (
+            {(view !== 'sale') && (
                  <button
                     onClick={handleNewSale}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"

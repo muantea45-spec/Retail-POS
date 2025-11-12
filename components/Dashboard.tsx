@@ -6,7 +6,6 @@ type ItemSaleData = {
   name: string;
   quantitySold: number;
   totalRevenue: number;
-  currentStock: number;
 };
 
 type SortConfig = {
@@ -47,7 +46,6 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
                      name: product.name,
                      quantitySold: saleData.quantitySold,
                      totalRevenue: saleData.totalRevenue,
-                     currentStock: product.stock,
                  });
             }
         });
@@ -123,15 +121,12 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
                             <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('totalRevenue')}>
                                 Total Revenue <span className="text-slate-400">{getSortIndicator('totalRevenue')}</span>
                             </th>
-                            <th className="p-4 font-semibold text-sm text-slate-600 dark:text-slate-300 uppercase cursor-pointer text-right" onClick={() => requestSort('currentStock')}>
-                                Stock Left <span className="text-slate-400">{getSortIndicator('currentStock')}</span>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {sortedItems.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="text-center p-8 text-slate-500 dark:text-slate-400">
+                                <td colSpan={3} className="text-center p-8 text-slate-500 dark:text-slate-400">
                                     No product data to display. Add some products and make a sale!
                                 </td>
                             </tr>
@@ -141,9 +136,6 @@ const Dashboard: React.FC<DashboardProps> = ({ sales, products }) => {
                                     <td className="p-4 text-slate-800 dark:text-slate-200 font-medium">{item.name}</td>
                                     <td className="p-4 text-slate-600 dark:text-slate-300 text-right">{item.quantitySold}</td>
                                     <td className="p-4 text-slate-600 dark:text-slate-300 text-right">₹{item.totalRevenue.toFixed(2)}</td>
-                                    <td className={`p-4 text-right font-medium ${item.currentStock <= 0 ? 'text-red-500' : 'text-slate-600 dark:text-slate-300'}`}>
-                                        {item.currentStock}
-                                    </td>
                                 </tr>
                             ))
                         )}

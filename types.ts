@@ -1,3 +1,4 @@
+// FIX: Removed a self-import of `CartItem` which was causing a name collision with the local declaration.
 // FIX: Removed a self-import of `Product` from this file as it was causing a name collision and breaking type inference.
 
 export interface Product {
@@ -26,4 +27,10 @@ export interface Sale {
   customerName?: string;
   customerAddress?: string;
   customerPhone?: string;
+}
+
+export interface Customer {
+  name: string;
+  address: string;
+  phone: string;
 }

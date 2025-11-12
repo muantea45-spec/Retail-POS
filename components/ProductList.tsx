@@ -5,23 +5,27 @@ import { PencilIcon } from './icons';
 
 interface ProductListProps {
   products: Product[];
+  categories: string[];
   cartItems: { id: number }[];
   onAddToCart: (product: Product) => void;
   onEditProduct: (product: Product) => void;
   onUpdateCategory: (oldCategory: string, newCategory: string) => void;
 }
 
-const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToCart, onEditProduct, onUpdateCategory }) => {
+const ProductList: React.FC<ProductListProps> = ({ products, categories, cartItems, onAddToCart, onEditProduct, onUpdateCategory }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [categoryInputValue, setCategoryInputValue] = useState('');
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [products, searchTerm]);
+    return products
+      .filter(p => selectedCategory === 'All' || p.category === selectedCategory)
+      .filter(p =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+  }, [products, searchTerm, selectedCategory]);
   
   const groupedProducts = useMemo(() => {
     // FIX: Replaced reduce with a for...of loop to avoid complex type inference issues.
@@ -52,7 +56,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
 
   return (
     <div>
-        <div className="mb-4 sticky top-20 z-10 bg-slate-50 dark:bg-slate-900 py-2">
+        <div className="mb-4 sticky top-20 z-10 bg-slate-50 dark:bg-slate-900 py-2 space-y-3">
             <input
                 type="text"
                 placeholder="Search products by name or category..."
@@ -60,6 +64,23 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
             />
+            <div className="flex items-center space-x-2 overflow-x-auto pb-2 -mx-4 px-4">
+              <button 
+                onClick={() => setSelectedCategory('All')}
+                className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors flex-shrink-0 ${selectedCategory === 'All' ? 'bg-primary-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                All
+              </button>
+              {categories.map(category => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors flex-shrink-0 ${selectedCategory === category ? 'bg-primary-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
         </div>
       
         {Object.keys(groupedProducts).length > 0 ? (
@@ -92,7 +113,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
                         </h2>
                       )}
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                         {items.map(product => (
                             <ProductCard
                                 key={product.id}
@@ -107,7 +128,7 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
             ))
         ) : (
             <div className="text-center py-10">
-                <p className="text-slate-500 dark:text-slate-400">No products found matching your search.</p>
+                <p className="text-slate-500 dark:text-slate-400">No products found.</p>
             </div>
         )}
     </div>
