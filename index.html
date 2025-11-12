@@ -27,6 +27,49 @@
   }
 }
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  @media print {
+    body, html {
+      background: #fff !important;
+      color: #000 !important;
+      min-height: auto;
+    }
+    .no-print {
+      display: none !important;
+    }
+    body > #root > div > header,
+    body > #root > div > main > *:not(.bill-summary-container) {
+      display: none !important;
+    }
+    .bill-summary-container {
+      display: block !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-shadow: none !important;
+      border: none !important;
+    }
+    .printable-receipt {
+      box-shadow: none !important;
+      border-radius: 0 !important;
+      padding: 0 !important;
+      color: #000 !important;
+    }
+    .printable-receipt .dark\\:bg-slate-800 {
+        background-color: #fff !important;
+    }
+    .printable-receipt .dark\\:text-slate-400,
+    .printable-receipt .dark\\:text-slate-500,
+    .printable-receipt .dark\\:text-slate-300 {
+        color: #333 !important;
+    }
+     .printable-receipt .dark\\:text-white {
+        color: #000 !important;
+    }
+  }
+</style>
 </head>
   <body class="bg-slate-50 dark:bg-slate-900">
     <div id="root"></div>

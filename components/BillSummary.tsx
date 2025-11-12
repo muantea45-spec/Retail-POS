@@ -1,20 +1,38 @@
-import React from 'react';
-import { CartItem } from '../types';
-import { WhatsAppIcon, MessageIcon } from './icons';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
+import { Sale } from '../types';
+import { WhatsAppIcon, MessageIcon, DownloadIcon, LinkIcon, PrintIcon } from './icons';
+import BillDetails from './BillDetails';
+
+// Make jspdf and html2canvas available in the scope
+declare const jspdf: any;
+declare const html2canvas: any;
 
 interface BillSummaryProps {
-  items: CartItem[];
-  subtotal: number;
-  itemsTotal: number;
-  billDiscount: number;
-  finalTotal: number;
+  sale: Sale;
   onNewSale: () => void;
 }
 
-const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, itemsTotal, billDiscount, finalTotal, onNewSale }) => {
-  const generateBillText = () => {
-    let text = '--- Your Bill ---\n\n';
-    items.forEach(item => {
+const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
+  const billRef = useRef<HTMLDivElement>(null);
+
+  const generateBillText = useCallback(() => {
+    let text = '--- FC Store ---\n';
+    text += 'Sanpoh Kawn, N. Vanlaiphai\n';
+    text += 'Ph: +91 8787747469\n\n';
+    text += `Date: ${sale.date.toLocaleString()}\n\n`;
+    
+    if (sale.customerName || sale.customerAddress || sale.customerPhone) {
+        text += '--- Customer Details ---\n';
+        if (sale.customerName) text += `Name: ${sale.customerName}\n`;
+        if (sale.customerAddress) text += `Address: ${sale.customerAddress}\n`;
+        if (sale.customerPhone) text += `Phone: ${sale.customerPhone}\n`;
+        text += '\n';
+    } else {
+        text += '--- Customer Details ---\nName:\nAddress:\nPhone:\n\n';
+    }
+
+    text += '--- Items ---\n'
+    sale.items.forEach(item => {
       text += `${item.name} (x${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`;
       if (item.discount > 0) {
         text += ` (${item.discount}% off MRP ₹${item.mrp.toFixed(2)})\n`;
@@ -23,94 +41,123 @@ const BillSummary: React.FC<BillSummaryProps> = ({ items, subtotal, itemsTotal, 
       }
     });
     text += '\n-------------------\n';
-    text += `Subtotal: ₹${subtotal.toFixed(2)}\n`;
-    if (subtotal !== itemsTotal) {
-      text += `Items Total: ₹${itemsTotal.toFixed(2)}\n`;
+    text += `Subtotal: ₹${sale.subtotal.toFixed(2)}\n`;
+    if (sale.subtotal !== sale.itemsTotal) {
+      text += `Items Total: ₹${sale.itemsTotal.toFixed(2)}\n`;
     }
-    if (billDiscount > 0) {
-      text += `Bill Discount: ${billDiscount}%\n`;
+    if (sale.billDiscount > 0) {
+      text += `Bill Discount: ${sale.billDiscount}%\n`;
     }
-    text += `Grand Total: ₹${finalTotal.toFixed(2)}\n\n`;
+    text += `Grand Total: ₹${sale.finalTotal.toFixed(2)}\n\n`;
     text += 'Thank you for your purchase!';
     return text;
+  }, [sale]);
+
+  const [billText, setBillText] = useState(generateBillText);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  useEffect(() => {
+    setBillText(generateBillText());
+  }, [generateBillText, sale]);
+
+
+  const handleDownloadPdf = () => {
+    if (!billRef.current) return;
+    const { jsPDF } = jspdf;
+    
+    html2canvas(billRef.current, { 
+        scale: 2, // Use scale for better resolution
+        useCORS: true 
+    }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save(`Bill-${sale.id}.pdf`);
+    });
+  };
+  
+  const handleCopyLink = () => {
+    try {
+        const jsonSale = JSON.stringify(sale);
+        const encodedSale = btoa(jsonSale); // Base64 encode
+        const url = `${window.location.origin}${window.location.pathname}#bill=${encodedSale}`;
+        navigator.clipboard.writeText(url);
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2500);
+    } catch (e) {
+        console.error("Failed to copy link:", e);
+        alert("Could not copy link to clipboard.");
+    }
   };
 
-  const billText = generateBillText();
-  const encodedBillText = encodeURIComponent(billText);
+  const handlePrint = () => {
+    window.print();
+  }
 
+  const encodedBillText = encodeURIComponent(billText);
   const whatsappLink = `https://wa.me/?text=${encodedBillText}`;
   const smsLink = `sms:?&body=${encodedBillText}`;
 
   return (
-    <div className="max-w-2xl mx-auto bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 sm:p-8">
-      <div className="text-center border-b border-slate-200 dark:border-slate-700 pb-4 mb-6">
-        <h2 className="text-3xl font-bold text-primary-600">Bill Finalized</h2>
-        <p className="text-slate-500 dark:text-slate-400 mt-2">Thank you for your order!</p>
-      </div>
-
-      <div className="space-y-3 mb-6">
-        {items.map(item => (
-          <div key={item.id} className="flex justify-between items-start text-slate-700 dark:text-slate-300">
-            <div>
-              <span>{item.name} <span className="text-sm text-slate-500 dark:text-slate-400">x{item.quantity}</span></span>
-              {item.discount > 0 && (
-                <p className="text-xs text-green-600 dark:text-green-400">{item.discount}% discount applied</p>
-              )}
-            </div>
-            <div className="text-right">
-                <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
-                {item.discount > 0 && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-through">₹{(item.mrp * item.quantity).toFixed(2)}</p>
-                )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-2">
-        <div className="flex justify-between text-slate-600 dark:text-slate-300">
-          <span>Subtotal</span>
-          <span className="font-medium">₹{subtotal.toFixed(2)}</span>
+    <div className="max-w-2xl mx-auto bill-summary-container">
+        <div ref={billRef} className="bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 sm:p-8 printable-receipt">
+            <BillDetails sale={sale} />
         </div>
-        {subtotal !== itemsTotal && (
-             <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>Items Total</span>
-                <span className="font-medium">₹{itemsTotal.toFixed(2)}</span>
-            </div>
-        )}
-        {billDiscount > 0 && (
-             <div className="flex justify-between text-slate-600 dark:text-slate-300">
-                <span>Bill Discount</span>
-                <span className="font-medium">-{billDiscount}%</span>
-            </div>
-        )}
-        <div className="flex justify-between text-2xl font-bold text-slate-900 dark:text-white mt-2">
-          <span>Grand Total</span>
-          <span>₹{finalTotal.toFixed(2)}</span>
-        </div>
-      </div>
       
-      <div className="mt-8 text-center">
-        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Share Bill</h3>
-        <div className="flex justify-center space-x-4">
-          <a
-            href={whatsappLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition-colors w-40"
-          >
-            <WhatsAppIcon className="w-5 h-5 mr-2" />
-            WhatsApp
-          </a>
-          <a
-            href={smsLink}
-            className="inline-flex items-center justify-center bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg transition-colors w-40"
-          >
-            <MessageIcon className="w-5 h-5 mr-2" />
-            Text
-          </a>
+        <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print">
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Customize & Share Bill</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Edit the message below before sharing, or create a shareable link.</p>
+            <textarea
+                value={billText}
+                onChange={e => setBillText(e.target.value)}
+                rows={10}
+                className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+                aria-label="Editable bill message"
+            />
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+            <a
+                href={whatsappLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+                <WhatsAppIcon className="w-5 h-5 mr-2" />
+                <span>WhatsApp</span>
+            </a>
+            <a
+                href={smsLink}
+                className="inline-flex items-center justify-center bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+                <MessageIcon className="w-5 h-5 mr-2" />
+                <span>Text</span>
+            </a>
+            <button
+                onClick={handleDownloadPdf}
+                className="inline-flex items-center justify-center bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+                <DownloadIcon className="w-5 h-5 mr-2" />
+                <span>PDF</span>
+            </button>
+            <button
+                onClick={handleCopyLink}
+                className="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+                <LinkIcon className="w-5 h-5 mr-2" />
+                <span>{linkCopied ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+            <button
+                onClick={handlePrint}
+                className="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+            >
+                <PrintIcon className="w-5 h-5 mr-2" />
+                <span>Print</span>
+            </button>
+            </div>
         </div>
-      </div>
     </div>
   );
 };

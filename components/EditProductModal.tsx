@@ -13,6 +13,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
   const [name, setName] = useState('');
   const [mrp, setMrp] = useState('');
   const [category, setCategory] = useState('');
+  const [stock, setStock] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -20,6 +21,7 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
       setName(product.name);
       setMrp(product.mrp.toString());
       setCategory(product.category);
+      setStock(product.stock.toString());
       setError('');
     }
   }, [product]);
@@ -30,17 +32,23 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !mrp || !category.trim()) {
+    if (!name.trim() || !mrp || !category.trim() || !stock) {
       setError('All fields are required.');
       return;
     }
     const mrpValue = parseFloat(mrp);
+    const stockValue = parseInt(stock, 10);
+
     if (isNaN(mrpValue) || mrpValue <= 0) {
       setError('Please enter a valid MRP.');
       return;
     }
+    if (isNaN(stockValue) || stockValue < 0) {
+        setError('Please enter a valid stock quantity.');
+        return;
+    }
 
-    onUpdateProduct({ ...product, name, mrp: mrpValue, category });
+    onUpdateProduct({ ...product, name, mrp: mrpValue, category, stock: stockValue });
     onClose();
   };
   
@@ -99,6 +107,18 @@ const EditProductModal: React.FC<EditProductModalProps> = ({ product, onUpdatePr
               className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
               min="0.01"
               step="0.01"
+            />
+          </div>
+          <div>
+            <label htmlFor="edit-stock" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Stock Quantity</label>
+            <input
+              id="edit-stock"
+              type="number"
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className="w-full p-2 border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500"
+              min="0"
+              step="1"
             />
           </div>
           {error && <p className="text-red-500 text-sm">{error}</p>}
