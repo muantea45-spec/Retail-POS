@@ -31,42 +31,68 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @media print {
+    /* Reset base styles for printing */
     body, html {
+      width: 100%;
+      height: auto;
+      min-height: auto;
       background: #fff !important;
       color: #000 !important;
-      min-height: auto;
+      -webkit-print-color-adjust: exact; /* For Chrome/Safari */
+      color-adjust: exact; /* Standard */
     }
+    
+    /* Hide all non-printable elements */
     .no-print {
       display: none !important;
     }
+
+    /* Isolate the bill container by hiding its siblings and parents' non-essential parts */
     body > #root > div > header,
     body > #root > div > main > *:not(.bill-summary-container) {
       display: none !important;
     }
+    
+    /* Make the bill container take up the full printable area */
     .bill-summary-container {
       display: block !important;
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100% !important;
       max-width: 100% !important;
       margin: 0 !important;
-      padding: 0 !important;
+      padding: 1cm 0.5cm !important; /* Add some padding for paper margins */
       box-shadow: none !important;
       border: none !important;
+      page-break-inside: avoid; /* Try to keep the whole receipt on one page if it fits */
     }
+
+    /* Style the actual receipt content for clarity */
     .printable-receipt {
       box-shadow: none !important;
       border-radius: 0 !important;
       padding: 0 !important;
       color: #000 !important;
+      background-color: #fff !important;
+      font-size: 10pt; /* Set a consistent base font size */
+      line-height: 1.4;
     }
-    .printable-receipt .dark\\:bg-slate-800 {
-        background-color: #fff !important;
+
+    /* Universal selector to override any lingering dark mode styles within the receipt */
+    .printable-receipt * {
+       background-color: transparent !important;
+       color: #000 !important;
+       border-color: #ccc !important;
     }
-    .printable-receipt .dark\\:text-slate-400,
-    .printable-receipt .dark\\:text-slate-500,
-    .printable-receipt .dark\\:text-slate-300 {
-        color: #333 !important;
+
+    /* Specific overrides for header/text sizes if needed, relative to the base font size */
+    .printable-receipt h2,
+    .printable-receipt .text-xl, .printable-receipt .sm\\:text-2xl {
+        font-size: 14pt !important;
     }
-     .printable-receipt .dark\\:text-white {
-        color: #000 !important;
+    .printable-receipt .text-xs, .printable-receipt .sm\\:text-sm {
+        font-size: 9pt !important;
     }
   }
 </style>

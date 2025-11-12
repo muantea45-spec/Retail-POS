@@ -19,6 +19,7 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     let text = '--- FC Store ---\n';
     text += 'Sanpoh Kawn, N. Vanlaiphai\n';
     text += 'Ph: +91 8787747469\n\n';
+    text += `Receipt No: ${sale.receiptNo}\n`;
     text += `Date: ${sale.date.toLocaleString()}\n\n`;
     
     if (sale.customerName || sale.customerAddress || sale.customerPhone) {

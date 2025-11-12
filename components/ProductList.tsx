@@ -24,16 +24,16 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
   }, [products, searchTerm]);
   
   const groupedProducts = useMemo(() => {
-    // FIX: Used a generic type argument for reduce to ensure correct type inference for the accumulator.
-    // FIX: Cast the initial value for `reduce` to fix TypeScript's type inference.
-    return filteredProducts.reduce((acc, product) => {
+    // FIX: Replaced reduce with a for...of loop to avoid complex type inference issues.
+    const acc: Record<string, Product[]> = {};
+    for (const product of filteredProducts) {
       const category = product.category;
       if (!acc[category]) {
         acc[category] = [];
       }
       acc[category].push(product);
-      return acc;
-    }, {} as Record<string, Product[]>);
+    }
+    return acc;
   }, [filteredProducts]);
 
   const cartItemIds = useMemo(() => new Set(cartItems.map(item => item.id)), [cartItems]);

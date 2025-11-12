@@ -1,3 +1,5 @@
+// FIX: Removed a self-import of `Product` from this file as it was causing a name collision and breaking type inference.
+
 export interface Product {
   id: number;
   name: string;
@@ -14,6 +16,7 @@ export interface CartItem extends Product {
 
 export interface Sale {
   id: number; // Using timestamp for simplicity
+  receiptNo: string;
   date: Date;
   items: CartItem[];
   subtotal: number;

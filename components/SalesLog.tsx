@@ -69,7 +69,10 @@ const SalesLog: React.FC<SalesLogProps> = ({ sales }) => {
         </div>
       ) : (
         <div className="space-y-4">
-          {Object.entries(groupedSales).map(([monthKey, monthData]) => (
+          {/* FIX: Replaced Object.entries with Object.keys to fix type inference. */}
+          {Object.keys(groupedSales).map((monthKey) => {
+            const monthData = groupedSales[monthKey];
+            return (
             <div key={monthKey} className="bg-white dark:bg-slate-800 rounded-lg shadow-md overflow-hidden">
                 <button
                     onClick={() => toggleMonth(monthKey)}
@@ -93,7 +96,10 @@ const SalesLog: React.FC<SalesLogProps> = ({ sales }) => {
                 </button>
                 {expandedMonth === monthKey && (
                     <div className="px-4 pb-4 space-y-2">
-                        {Object.entries(monthData.days).sort(([dayA], [dayB]) => dayB.localeCompare(dayA)).map(([dayKey, dayData]) => (
+                        {/* FIX: Replaced Object.entries with Object.keys to fix type inference. */}
+                        {Object.keys(monthData.days).sort((dayA, dayB) => dayB.localeCompare(dayA)).map((dayKey) => {
+                           const dayData = monthData.days[dayKey];
+                           return (
                            <div key={dayKey} className="bg-slate-50 dark:bg-slate-900/50 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700">
                                 <button
                                     onClick={() => toggleDay(dayKey)}
@@ -137,11 +143,11 @@ const SalesLog: React.FC<SalesLogProps> = ({ sales }) => {
                                     </div>
                                 )}
                            </div>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>
-          ))}
+          )})}
         </div>
       )}
     </div>

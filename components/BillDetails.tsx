@@ -8,11 +8,14 @@ interface BillDetailsProps {
 const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
     return (
         <>
-            <div className="text-center pb-4 mb-6">
+            <div className="text-center pb-4 mb-6 border-b border-slate-200 dark:border-slate-700">
                 <h2 className="text-xl sm:text-2xl font-bold text-primary-600">FC Store</h2>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Sanpoh Kawn, N. Vanlaiphai</p>
                 <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Ph: +91 8787747469</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">Date: {sale.date.toLocaleString()}</p>
+                <div className="flex justify-between items-center text-xs text-slate-400 dark:text-slate-500 mt-2">
+                    <span className="font-mono">Receipt: {sale.receiptNo}</span>
+                    <span>{sale.date.toLocaleString()}</span>
+                </div>
             </div>
 
             <div className="mb-6 text-sm">

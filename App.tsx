@@ -7,9 +7,10 @@ import BillSummary from './components/BillSummary';
 import EditProductModal from './components/EditProductModal';
 import AddProductForm from './components/AddProductForm';
 import SalesLog from './components/SalesLog';
-import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon } from './components/icons';
+import Dashboard from './components/Dashboard';
+import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon } from './components/icons';
 
-type View = 'sale' | 'bill' | 'log';
+type View = 'sale' | 'bill' | 'log' | 'dashboard';
 
 function App() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -146,9 +147,11 @@ function App() {
 
   const handleCheckout = useCallback(() => {
     if (cartItems.length > 0) {
+      const receiptNo = `REC-${String(salesLog.length + 1).padStart(4, '0')}`;
       // Create and record the sale
       const newSale: Sale = {
         id: Date.now(),
+        receiptNo,
         date: new Date(),
         items: cartItems,
         subtotal,
@@ -175,7 +178,7 @@ function App() {
       });
       setView('bill');
     }
-  }, [cartItems, subtotal, itemsTotal, finalTotal, billDiscount, customerName, customerAddress, customerPhone]);
+  }, [cartItems, subtotal, itemsTotal, finalTotal, billDiscount, customerName, customerAddress, customerPhone, salesLog.length]);
 
   const handleNewSale = useCallback(() => {
     handleClearCart();
@@ -194,13 +197,12 @@ function App() {
     setIsAddProductOpen(false);
   }, []);
 
-  // FIX: Broke the map().filter() chain to help TypeScript's type inference, which was causing errors with `updatedProduct`.
   const handleUpdateProduct = useCallback((updatedProduct: Product) => {
     setProducts(prevProducts => prevProducts.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     setCartItems(prevItems => {
-        // FIX: Refactored to use reduce for better type safety and to resolve inference issues.
-        // FIX: Cast the initial value for `reduce` to fix TypeScript's type inference. This resolves multiple errors.
-        return prevItems.reduce((acc, item) => {
+        // FIX: Replaced reduce with a for...of loop to avoid complex type inference issues.
+        const newCartItems: CartItem[] = [];
+        for (const item of prevItems) {
             if (item.id === updatedProduct.id) {
                 const newPrice = updatedProduct.mrp * (1 - item.discount / 100);
                 const newQuantity = Math.min(item.quantity, updatedProduct.stock);
@@ -211,13 +213,13 @@ function App() {
                       discount: item.discount, // Preserve original discount
                       price: newPrice,
                     };
-                    acc.push(newCartItem);
+                    newCartItems.push(newCartItem);
                 }
             } else {
-                acc.push(item);
+                newCartItems.push(item);
             }
-            return acc;
-        }, [] as CartItem[]);
+        }
+        return newCartItems;
     });
   }, []);
   
@@ -273,12 +275,13 @@ function App() {
             return currentSale ? (
                 <BillSummary 
                     sale={currentSale}
-                    // FIX: Changed onNewSale to the correct handler handleNewSale.
                     onNewSale={handleNewSale}
                 />
             ) : null;
         case 'log':
             return <SalesLog sales={salesLog} />;
+        case 'dashboard':
+            return <Dashboard sales={salesLog} products={products} />;
         default:
             return null;
     }
@@ -303,6 +306,7 @@ function App() {
             </button>
 
             {view === 'sale' && (
+              <>
                 <button
                     onClick={() => setView('log')}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -310,8 +314,16 @@ function App() {
                 >
                     <ListBulletIcon className="w-6 h-6" />
                 </button>
+                <button
+                    onClick={() => setView('dashboard')}
+                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    aria-label="View Dashboard"
+                >
+                    <ChartBarIcon className="w-6 h-6" />
+                </button>
+              </>
             )}
-            {(view === 'log' || view === 'bill') && (
+            {(view === 'log' || view === 'bill' || view === 'dashboard') && (
                  <button
                     onClick={handleNewSale}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
