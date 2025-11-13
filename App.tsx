@@ -8,11 +8,10 @@ import EditProductModal from './components/EditProductModal';
 import AddProductForm from './components/AddProductForm';
 import SalesLog from './components/SalesLog';
 import Dashboard from './components/Dashboard';
-import TopCustomers from './components/TopBuyersLog';
 import Checkout from './components/Checkout';
-import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon, TrophyIcon } from './components/icons';
+import { PlusIcon, SunIcon, MoonIcon, ListBulletIcon, ShoppingCartIcon, ChartBarIcon, EnterFullScreenIcon, ExitFullScreenIcon, ArrowLeftIcon } from './components/icons';
 
-type View = 'sale' | 'checkout' | 'bill' | 'log' | 'dashboard' | 'top-customers';
+type View = 'sale' | 'checkout' | 'bill' | 'log' | 'dashboard';
 
 function App() {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
@@ -23,10 +22,15 @@ function App() {
   const [customerAddress, setCustomerAddress] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [view, setView] = useState<View>('sale');
+  const [previousView, setPreviousView] = useState<View>('sale');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [salesLog, setSalesLog] = useState<Sale[]>([]);
   const [currentSale, setCurrentSale] = useState<Sale | null>(null);
+  const [isFullScreen, setIsFullScreen] = useState(() => {
+    if (typeof document === 'undefined') return false;
+    return !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+  });
   
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined' && localStorage.getItem('theme')) {
@@ -83,10 +87,50 @@ function App() {
     handleUrlBill();
   }, []); // Empty dependency array ensures this runs only once on mount.
 
+  const handleViewChange = (newView: View) => {
+    if (view === 'sale' || view === 'checkout') {
+        setPreviousView(view);
+    }
+    setView(newView);
+  };
 
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
+
+  const toggleFullScreen = useCallback(() => {
+    if (!document.fullscreenElement && !(document as any).webkitFullscreenElement) {
+      const element = document.documentElement;
+      if (element.requestFullscreen) {
+        element.requestFullscreen().catch(err => {
+            console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        });
+      } else if ((element as any).webkitRequestFullscreen) { // Safari
+        (element as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if ((document as any).webkitExitFullscreen) { // Safari
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      setIsFullScreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement));
+    };
+
+    document.addEventListener('fullscreenchange', handleFullScreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullScreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullScreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullScreenChange);
+    };
+  }, []);
+
 
   const handleAddToCart = useCallback((product: Product) => {
     setCartItems(prevItems => {
@@ -349,8 +393,6 @@ function App() {
             return <SalesLog sales={salesLog} />;
         case 'dashboard':
             return <Dashboard sales={salesLog} products={products} />;
-        case 'top-customers':
-            return <TopCustomers sales={salesLog} />;
         default:
             return null;
     }
@@ -372,6 +414,13 @@ function App() {
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
              <button
+                onClick={toggleFullScreen}
+                className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors sm:hidden"
+                aria-label="Toggle full screen"
+            >
+                {isFullScreen ? <ExitFullScreenIcon className="w-6 h-6" /> : <EnterFullScreenIcon className="w-6 h-6" />}
+            </button>
+             <button
                 onClick={toggleTheme}
                 className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                 aria-label="Toggle theme"
@@ -382,35 +431,28 @@ function App() {
             {(view === 'sale' || view === 'checkout') && (
               <>
                 <button
-                    onClick={() => setView('log')}
+                    onClick={() => handleViewChange('log')}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     aria-label="View Sales Log"
                 >
                     <ListBulletIcon className="w-6 h-6" />
                 </button>
                 <button
-                    onClick={() => setView('dashboard')}
+                    onClick={() => handleViewChange('dashboard')}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
                     aria-label="View Dashboard"
                 >
                     <ChartBarIcon className="w-6 h-6" />
                 </button>
-                 <button
-                    onClick={() => setView('top-customers')}
-                    className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    aria-label="View Top Customers"
-                >
-                    <TrophyIcon className="w-6 h-6" />
-                </button>
               </>
             )}
             {(view !== 'sale' && view !== 'checkout') && (
                  <button
-                    onClick={handleNewSale}
+                    onClick={view === 'bill' ? handleNewSale : () => setView(previousView)}
                     className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                    aria-label="Go to Sales Screen"
+                    aria-label={view === 'bill' ? "Go to Sales Screen" : "Go Back"}
                 >
-                    <ShoppingCartIcon className="w-6 h-6" />
+                    {view === 'bill' ? <ShoppingCartIcon className="w-6 h-6" /> : <ArrowLeftIcon className="w-6 h-6" />}
                 </button>
             )}
 
