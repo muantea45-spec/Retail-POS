@@ -73,21 +73,33 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
 
 
   const handleDownloadPdf = () => {
-    if (!billRef.current) return;
+    const input = billRef.current;
+    if (!input) return;
+
     const { jsPDF } = jspdf;
     
-    html2canvas(billRef.current, { 
-        scale: 2, // Use scale for better resolution
-        useCORS: true 
+    html2canvas(input, { 
+        scale: 2, // Higher scale for better quality
+        useCORS: true,
+        // These options help capture the full height of the element, even if it's scrollable
+        windowHeight: input.scrollHeight,
+        scrollY: -window.scrollY
     }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
+      
+      // Calculate dimensions to maintain aspect ratio for a standard A4 width
+      const pdfWidth = 210; // A4 width in mm
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      // Create a PDF with a custom page size to fit the entire bill on one page
       const pdf = new jsPDF({
         orientation: 'portrait',
-        unit: 'px',
-        format: [canvas.width, canvas.height]
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight]
       });
-      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
-      pdf.save(`Bill-${sale.id}.pdf`);
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Bill-${sale.receiptNo}.pdf`);
     });
   };
   
