@@ -1,8 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { Sale } from '../types';
 import BillDetails from './BillDetails';
-import { ListBulletIcon } from './icons';
+import { ListBulletIcon, DownloadIcon } from './icons';
 import BaBuLog from './BaBuLog';
+
+// Make jspdf and html2canvas available in the scope
+declare const jspdf: any;
+declare const html2canvas: any;
 
 interface SalesLogProps {
   sales: Sale[];
@@ -34,6 +38,54 @@ const SalesLog: React.FC<SalesLogProps> = ({ sales, onClearCustomerDebt }) => {
       .filter(sale => sale.status === 'not_paid')
       .reduce((acc, sale) => acc + sale.finalTotal, 0);
   }, [sales]);
+
+  const handleDownloadPdf = (saleId: number, receiptNo: string) => {
+    const input = document.getElementById(`bill-container-${saleId}`);
+    if (!input) return;
+
+    const root = window.document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    
+    // Force light mode for capture
+    if (wasDark) {
+      root.classList.remove('dark');
+    }
+
+    const { jsPDF } = jspdf;
+
+    // Temporarily apply a fixed width for consistent rendering to help html2canvas.
+    const originalWidth = input.style.width;
+    input.style.width = '302px'; // Approx 80mm at 96dpi, a common receipt width.
+    
+    html2canvas(input, { 
+        scale: 3, // Increased scale for better quality
+        useCORS: true,
+        backgroundColor: '#ffffff', // Explicitly set background to white
+    }).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Use a standard receipt paper width (80mm) for better proportions
+      const pdfWidth = 80;
+      const canvasAspectRatio = canvas.height / canvas.width;
+      const pdfHeight = pdfWidth * canvasAspectRatio;
+
+      // Create a PDF with a custom page size to fit the entire bill on one page
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [pdfWidth, pdfHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Bill-${receiptNo}.pdf`);
+    }).finally(() => {
+        // Restore original styles and theme
+        input.style.width = originalWidth;
+        if (wasDark) {
+            root.classList.add('dark');
+        }
+    });
+  };
 
   const groupedSales = useMemo((): GroupedSales => {
     const acc: GroupedSales = {};
@@ -169,22 +221,34 @@ const SalesLog: React.FC<SalesLogProps> = ({ sales, onClearCustomerDebt }) => {
                                             <div className="p-4 border-t border-slate-200 dark:border-slate-700">
                                             <div className="space-y-4">
                                                 {dayData.sales.map(sale => (
-                                                <div key={sale.id} className="p-4 border border-slate-200 dark:border-slate-700 rounded-lg">
-                                                    <div className="flex justify-between items-center mb-4">
-                                                        <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                                        {sale.date.toLocaleTimeString()} &mdash; {sale.items.length} item(s)
-                                                        </p>
-                                                        <div className="flex items-center gap-x-4">
-                                                        {sale.status === 'not_paid' && (
-                                                            <span className="text-xs font-bold text-red-500 bg-red-100 dark:bg-red-900/50 dark:text-red-400 px-2 py-1 rounded-full">UNPAID</span>
-                                                        )}
-                                                        <p className="font-bold text-slate-800 dark:text-slate-200">
-                                                            ₹{sale.finalTotal.toFixed(2)}
-                                                        </p>
-                                                        </div>
-                                                    </div>
-                                                    <BillDetails sale={sale} />
-                                                </div>
+                                                  <div key={sale.id} className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                                      <div id={`bill-container-${sale.id}`} className="bg-white dark:bg-slate-800 printable-receipt p-6">
+                                                          <BillDetails sale={sale} />
+                                                      </div>
+                                                      <div className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700 p-3 flex justify-between items-center gap-4">
+                                                          <div>
+                                                              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                                                                  {sale.date.toLocaleTimeString()} &mdash; {sale.items.length} item(s)
+                                                              </p>
+                                                              {sale.status === 'not_paid' && (
+                                                                  <span className="mt-1 inline-block text-xs font-bold text-red-500 bg-red-100 dark:bg-red-900/50 dark:text-red-400 px-2 py-1 rounded-full">UNPAID</span>
+                                                              )}
+                                                          </div>
+                                                          <div className="flex items-center gap-4">
+                                                              <p className="font-bold text-slate-800 dark:text-slate-200">
+                                                                  ₹{sale.finalTotal.toFixed(2)}
+                                                              </p>
+                                                              <button
+                                                                  onClick={() => handleDownloadPdf(sale.id, sale.receiptNo)}
+                                                                  className="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-3 rounded-md transition-colors text-sm flex-shrink-0"
+                                                                  title="Download as PDF"
+                                                              >
+                                                                  <DownloadIcon className="w-4 h-4 mr-2" />
+                                                                  <span>PDF</span>
+                                                              </button>
+                                                          </div>
+                                                      </div>
+                                                  </div>
                                                 ))}
                                             </div>
                                             </div>

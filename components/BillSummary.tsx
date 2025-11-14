@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Sale } from '../types';
-import { WhatsAppIcon, MessageIcon, DownloadIcon } from './icons';
+import { WhatsAppIcon, DownloadIcon, PrintIcon, LinkIcon } from './icons';
 import BillDetails from './BillDetails';
 
 // Make jspdf and html2canvas available in the scope
@@ -14,6 +14,7 @@ interface BillSummaryProps {
 
 const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
   const billRef = useRef<HTMLDivElement>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const generateBillText = useCallback(() => {
     let text = '--- FC Store ---\n';
@@ -74,6 +75,24 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     setBillText(generateBillText());
   }, [generateBillText, sale]);
 
+  const handlePrint = () => {
+    window.print();
+  };
+  
+  const handleShareLink = useCallback(() => {
+    // The receiving end in App.tsx correctly re-hydrates the date object from the ISO string
+    const saleJson = JSON.stringify(sale);
+    const encodedData = btoa(saleJson);
+    const url = `${window.location.origin}${window.location.pathname}#bill=${encodedData}`;
+
+    navigator.clipboard.writeText(url).then(() => {
+        setLinkCopied(true);
+        setTimeout(() => setLinkCopied(false), 2500); // Reset after 2.5 seconds
+    }).catch(err => {
+        console.error('Failed to copy link: ', err);
+        alert('Failed to copy link to clipboard.');
+    });
+  }, [sale]);
 
   const handleDownloadPdf = () => {
     const input = billRef.current;
@@ -89,18 +108,21 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
 
     const { jsPDF } = jspdf;
     
+    // Temporarily apply a fixed width for consistent rendering to help html2canvas.
+    const originalWidth = input.style.width;
+    input.style.width = '302px'; // Approx 80mm at 96dpi, a common receipt width.
+
     html2canvas(input, { 
-        scale: 2, // Higher scale for better quality
+        scale: 3, // Increased scale for better quality
         useCORS: true,
         backgroundColor: '#ffffff', // Explicitly set background to white
-        windowHeight: input.scrollHeight,
-        scrollY: -window.scrollY
     }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       
-      // Calculate dimensions to maintain aspect ratio for a standard A4 width
-      const pdfWidth = 210; // A4 width in mm
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Use a standard receipt paper width (80mm) for better proportions
+      const pdfWidth = 80; 
+      const canvasAspectRatio = canvas.height / canvas.width;
+      const pdfHeight = pdfWidth * canvasAspectRatio;
 
       // Create a PDF with a custom page size to fit the entire bill on one page
       const pdf = new jsPDF({
@@ -112,7 +134,8 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Bill-${sale.receiptNo}.pdf`);
     }).finally(() => {
-        // Restore dark mode if it was on
+        // Restore original styles and theme
+        input.style.width = originalWidth;
         if (wasDark) {
             root.classList.add('dark');
         }
@@ -129,25 +152,49 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
         </div>
       
         <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print sticky bottom-0">
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Customize & Share Bill</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Edit the message below before sharing.</p>
-            <textarea
-                value={billText}
-                onChange={e => setBillText(e.target.value)}
-                rows={10}
-                className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
-                aria-label="Editable bill message"
-            />
-            <div className="mt-6">
-              <a
-                  href={whatsappLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-              >
-                  <WhatsAppIcon className="w-5 h-5 mr-2" />
-                  <span>Share on WhatsApp</span>
-              </a>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Share & Export Bill</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                <button
+                    onClick={handlePrint}
+                    className="w-full inline-flex items-center justify-center bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                >
+                    <PrintIcon className="w-5 h-5 mr-2" />
+                    <span>Print</span>
+                </button>
+                <button
+                    onClick={handleDownloadPdf}
+                    className="w-full inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                >
+                    <DownloadIcon className="w-5 h-5 mr-2" />
+                    <span>PDF</span>
+                </button>
+                <button
+                    onClick={handleShareLink}
+                    className="w-full inline-flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                >
+                    <LinkIcon className="w-5 h-5 mr-2" />
+                    <span>{linkCopied ? 'Copied!' : 'Copy Link'}</span>
+                </button>
+                <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                >
+                    <WhatsAppIcon className="w-5 h-5 mr-2" />
+                    <span>WhatsApp</span>
+                </a>
+            </div>
+            <div>
+                <label htmlFor="bill-text-area" className="block text-sm text-slate-500 dark:text-slate-400 mb-2">You can also customize the message for WhatsApp before sharing:</label>
+                <textarea
+                    id="bill-text-area"
+                    value={billText}
+                    onChange={e => setBillText(e.target.value)}
+                    rows={8}
+                    className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
+                    aria-label="Editable bill message"
+                />
             </div>
         </div>
     </div>

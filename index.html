@@ -31,51 +31,49 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   @media print {
-    /* Reset base styles for printing */
-    body, html {
-      width: 100%;
-      height: auto;
-      min-height: auto;
-      background: #fff !important;
-      color: #000 !important;
-      -webkit-print-color-adjust: exact; /* For Chrome/Safari */
-      color-adjust: exact; /* Standard */
-    }
-    
-    /* Hide all non-printable elements */
+    /* Hide everything by default that is not part of the bill */
+    body > #root > div > header,
+    body > #root > div > main > *:not(.bill-summary-container),
     .no-print {
       display: none !important;
     }
 
-    /* Isolate the bill container by hiding its siblings and parents' non-essential parts */
-    body > #root > div > header,
-    body > #root > div > main > *:not(.bill-summary-container) {
-      display: none !important;
+    /* Ensure the bill and its parents are visible */
+    body, #root, #root > div, #root > div > main, .bill-summary-container {
+      display: block !important;
+      visibility: visible !important;
     }
     
-    /* Make the bill container take up the full printable area */
+    /* Reset base styles for printing */
+    body, html {
+      width: 100%;
+      min-height: auto;
+      background: #fff !important;
+      color: #000 !important;
+      -webkit-print-color-adjust: exact;
+      color-adjust: exact;
+    }
+    
+    /* Style the printable bill container to resemble a receipt */
     .bill-summary-container {
-      display: block !important;
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 100% !important;
+      position: static !important;
+      width: 80mm; /* Standard thermal receipt paper width */
       max-width: 100% !important;
       margin: 0 !important;
-      padding: 1cm 0.5cm !important; /* Add some padding for paper margins */
+      padding: 3mm !important;
       box-shadow: none !important;
       border: none !important;
-      page-break-inside: avoid; /* Try to keep the whole receipt on one page if it fits */
+      page-break-inside: avoid;
     }
 
-    /* Style the actual receipt content for clarity */
+    /* Style the actual receipt content */
     .printable-receipt {
       box-shadow: none !important;
       border-radius: 0 !important;
       padding: 0 !important;
-      color: #000 !important;
       background-color: #fff !important;
-      font-size: 10pt; /* Set a consistent base font size */
+      font-family: 'Courier New', Courier, monospace; /* Classic receipt font */
+      font-size: 9pt;
       line-height: 1.4;
     }
 
@@ -83,16 +81,29 @@
     .printable-receipt * {
        background-color: transparent !important;
        color: #000 !important;
-       border-color: #ccc !important;
+       border-color: #666 !important;
     }
-
-    /* Specific overrides for header/text sizes if needed, relative to the base font size */
+    
+    /* Specific style adjustments for receipt elements */
+    .printable-receipt .text-primary-600 {
+        color: #000 !important;
+    }
+    
     .printable-receipt h2,
     .printable-receipt .text-xl, .printable-receipt .sm\\:text-2xl {
-        font-size: 14pt !important;
+        font-size: 11pt !important;
+        font-weight: 600 !important;
     }
+
     .printable-receipt .text-xs, .printable-receipt .sm\\:text-sm {
-        font-size: 9pt !important;
+        font-size: 8pt !important;
+    }
+    
+    .printable-receipt .transform.-rotate-3 {
+        transform: none !important;
+        border-width: 2px !important;
+        padding: 4px 8px !important;
+        margin-top: 10px;
     }
   }
 </style>
