@@ -16,7 +16,8 @@ const ProductList: React.FC<ProductListProps> = ({ products, cartItems, onAddToC
     return products
       .filter(p =>
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [products, searchTerm]);
   
   const cartItemIds = useMemo(() => new Set(cartItems.map(item => item.id)), [cartItems]);

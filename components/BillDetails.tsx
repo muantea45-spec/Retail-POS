@@ -58,26 +58,39 @@ const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
                 )}
             </div>
 
-            <div className="space-y-3 mb-6">
-                {sale.items.map(item => (
-                    <div key={item.id} className="flex justify-between items-start text-slate-700 dark:text-slate-300 border-b border-dashed border-slate-200 dark:border-slate-700 pb-2 last:border-0 last:pb-0">
-                        <div>
-                            <span>{item.name} <span className="text-sm text-slate-500 dark:text-slate-400">x{item.quantity}</span></span>
-                            {item.discount > 0 && (
-                                <p className="text-xs text-green-600 dark:text-green-400">{item.discount}% discount applied</p>
-                            )}
-                            {item.manualDiscount && item.manualDiscount > 0 && (
-                                <p className="text-xs text-green-600 dark:text-green-400">₹{item.manualDiscount.toFixed(2)} discount applied</p>
-                            )}
+            <div className="mb-6">
+                {/* Table Header */}
+                <div className="flex text-sm font-semibold text-slate-600 dark:text-slate-400 border-b-2 border-slate-200 dark:border-slate-700 pb-2">
+                    <div className="flex-grow text-left">Item</div>
+                    <div className="w-16 text-center">Qty</div>
+                    <div className="w-24 text-right">Amount</div>
+                </div>
+
+                {/* Table Body */}
+                <div className="mt-2">
+                    {sale.items.map(item => (
+                        <div key={item.id} className="flex items-start text-slate-700 dark:text-slate-300 py-2 border-b border-dashed border-slate-200 dark:border-slate-700 last:border-0">
+                            <div className="flex-grow text-left pr-2">
+                                <span>{item.name}</span>
+                                {item.discount > 0 && (
+                                    <p className="text-xs text-green-600 dark:text-green-400">{item.discount}% discount</p>
+                                )}
+                                {item.manualDiscount && item.manualDiscount > 0 && (
+                                    <p className="text-xs text-green-600 dark:text-green-400">₹{item.manualDiscount.toFixed(2)} discount</p>
+                                )}
+                            </div>
+                            <div className="w-16 text-center">
+                                <span>{item.quantity}</span>
+                            </div>
+                            <div className="w-24 text-right">
+                                <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
+                                {(item.discount > 0 || (item.manualDiscount && item.manualDiscount > 0)) && (
+                                    <p className="text-xs text-slate-500 dark:text-slate-400 line-through">₹{(item.mrp * item.quantity).toFixed(2)}</p>
+                                )}
+                            </div>
                         </div>
-                        <div className="text-right">
-                            <span className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</span>
-                            {item.discount > 0 && (
-                                <p className="text-xs text-slate-500 dark:text-slate-400 line-through">₹{(item.mrp * item.quantity).toFixed(2)}</p>
-                            )}
-                        </div>
-                    </div>
-                ))}
+                    ))}
+                </div>
             </div>
 
             <div className="border-t border-slate-200 dark:border-slate-700 pt-4 space-y-2">
@@ -107,6 +120,13 @@ const BillDetails: React.FC<BillDetailsProps> = ({ sale }) => {
                     <span>Grand Total</span>
                     <span>₹{sale.finalTotal.toFixed(2)}</span>
                 </div>
+                {sale.status === 'not_paid' && (
+                    <div className="mt-4 text-center">
+                        <p className="text-2xl font-bold text-red-500 dark:text-red-400 border-2 border-red-500 dark:border-red-400 rounded-lg py-2 px-4 inline-block transform -rotate-3">
+                            UNPAID
+                        </p>
+                    </div>
+                )}
             </div>
         </>
     );

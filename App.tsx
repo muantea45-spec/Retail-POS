@@ -207,7 +207,7 @@ function App() {
     }
   };
 
-  const handleCheckout = useCallback(() => {
+  const handleCheckout = useCallback((paymentStatus: 'paid' | 'not_paid') => {
     if (cartItems.length > 0) {
       const today = new Date();
       const year = today.getFullYear();
@@ -235,6 +235,7 @@ function App() {
         customerName: customerName.trim(),
         customerAddress: customerAddress.trim(),
         customerPhone: customerPhone.trim(),
+        status: paymentStatus,
       };
       setSalesLog(prev => [newSale, ...prev]);
       setCurrentSale(newSale);
@@ -297,20 +298,41 @@ function App() {
     const customers = new Map<string, Customer>();
     salesLog.forEach(sale => {
       const name = sale.customerName?.trim();
-      const phone = sale.customerPhone?.trim();
-      if (name && phone) {
-        const key = `${name.toLowerCase()}|${phone}`;
+      const address = sale.customerAddress?.trim();
+      if (name && address) {
+        const key = `${name.toLowerCase()}|${address.toLowerCase()}`;
         if (!customers.has(key)) {
           customers.set(key, {
             name,
-            phone,
-            address: sale.customerAddress?.trim() || '',
+            address,
+            phone: sale.customerPhone?.trim() || '',
           });
         }
       }
     });
     return Array.from(customers.values());
   }, [salesLog]);
+  
+  const handleClearCustomerDebt = useCallback((customer: { name: string; address: string; }) => {
+    setSalesLog(prevSales => 
+      prevSales.map(sale => {
+        const saleCustomerName = sale.customerName?.trim().toLowerCase();
+        const saleCustomerAddress = sale.customerAddress?.trim().toLowerCase();
+        const targetCustomerName = customer.name.trim().toLowerCase();
+        const targetCustomerAddress = customer.address.trim().toLowerCase();
+
+        if (
+          sale.status === 'not_paid' &&
+          saleCustomerName === targetCustomerName &&
+          saleCustomerAddress === targetCustomerAddress
+        ) {
+          return { ...sale, status: 'paid' };
+        }
+        return sale;
+      })
+    );
+  }, []);
+
 
   const renderView = () => {
     switch(view) {
@@ -390,7 +412,7 @@ function App() {
                 />
             ) : null;
         case 'log':
-            return <SalesLog sales={salesLog} />;
+            return <SalesLog sales={salesLog} onClearCustomerDebt={handleClearCustomerDebt} />;
         case 'dashboard':
             return <Dashboard sales={salesLog} products={products} />;
         default:

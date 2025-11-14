@@ -27,6 +27,7 @@ export interface Sale {
   customerName?: string;
   customerAddress?: string;
   customerPhone?: string;
+  status: 'paid' | 'not_paid';
 }
 
 export interface Customer {

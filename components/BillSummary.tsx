@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Sale } from '../types';
-import { WhatsAppIcon, MessageIcon, DownloadIcon, LinkIcon, PrintIcon } from './icons';
+import { WhatsAppIcon, MessageIcon, DownloadIcon } from './icons';
 import BillDetails from './BillDetails';
 
 // Make jspdf and html2canvas available in the scope
@@ -34,7 +34,8 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
 
     text += '--- Items ---\n'
     sale.items.forEach(item => {
-      text += `${item.name} (x${item.quantity}) - ₹${(item.price * item.quantity).toFixed(2)}`;
+      const quantityText = item.quantity > 1 ? ` x${item.quantity}` : '';
+      text += `${item.name}${quantityText} - ₹${(item.price * item.quantity).toFixed(2)}`;
       const discounts = [];
       if (item.discount > 0) {
         discounts.push(`${item.discount}% off`);
@@ -60,13 +61,15 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
         text += `Bill Discount (Flat): -₹${sale.billManualDiscount.toFixed(2)}\n`;
     }
     text += `Grand Total: ₹${sale.finalTotal.toFixed(2)}\n\n`;
+    if (sale.status === 'not_paid') {
+      text += '--- STATUS: UNPAID ---\n\n';
+    }
     text += 'KAN LAWM E';
     return text;
   }, [sale]);
 
   const [billText, setBillText] = useState(generateBillText);
-  const [linkCopied, setLinkCopied] = useState(false);
-
+  
   useEffect(() => {
     setBillText(generateBillText());
   }, [generateBillText, sale]);
@@ -76,12 +79,20 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     const input = billRef.current;
     if (!input) return;
 
+    const root = window.document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    
+    // Force light mode for capture
+    if (wasDark) {
+      root.classList.remove('dark');
+    }
+
     const { jsPDF } = jspdf;
     
     html2canvas(input, { 
         scale: 2, // Higher scale for better quality
         useCORS: true,
-        // These options help capture the full height of the element, even if it's scrollable
+        backgroundColor: '#ffffff', // Explicitly set background to white
         windowHeight: input.scrollHeight,
         scrollY: -window.scrollY
     }).then((canvas) => {
@@ -100,30 +111,16 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`Bill-${sale.receiptNo}.pdf`);
+    }).finally(() => {
+        // Restore dark mode if it was on
+        if (wasDark) {
+            root.classList.add('dark');
+        }
     });
   };
   
-  const handleCopyLink = () => {
-    try {
-        const jsonSale = JSON.stringify(sale);
-        const encodedSale = btoa(jsonSale); // Base64 encode
-        const url = `${window.location.origin}${window.location.pathname}#bill=${encodedSale}`;
-        navigator.clipboard.writeText(url);
-        setLinkCopied(true);
-        setTimeout(() => setLinkCopied(false), 2500);
-    } catch (e) {
-        console.error("Failed to copy link:", e);
-        alert("Could not copy link to clipboard.");
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  }
-
   const encodedBillText = encodeURIComponent(billText);
   const whatsappLink = `https://wa.me/?text=${encodedBillText}`;
-  const smsLink = `sms:?&body=${encodedBillText}`;
 
   return (
     <div className="max-w-2xl mx-auto bill-summary-container">
@@ -133,7 +130,7 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
       
         <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print sticky bottom-0">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-2">Customize & Share Bill</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Edit the message below before sharing, or create a shareable link.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Edit the message below before sharing.</p>
             <textarea
                 value={billText}
                 onChange={e => setBillText(e.target.value)}
@@ -141,44 +138,16 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
                 className="w-full p-3 border border-slate-300 dark:border-slate-700 rounded-md bg-white dark:bg-slate-800 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition"
                 aria-label="Editable bill message"
             />
-            <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            <a
-                href={whatsappLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-                <WhatsAppIcon className="w-5 h-5 mr-2" />
-                <span>WhatsApp</span>
-            </a>
-            <a
-                href={smsLink}
-                className="inline-flex items-center justify-center bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-                <MessageIcon className="w-5 h-5 mr-2" />
-                <span>Text</span>
-            </a>
-            <button
-                onClick={handleDownloadPdf}
-                className="inline-flex items-center justify-center bg-slate-600 hover:bg-slate-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-                <DownloadIcon className="w-5 h-5 mr-2" />
-                <span>PDF</span>
-            </button>
-            <button
-                onClick={handleCopyLink}
-                className="inline-flex items-center justify-center bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-                <LinkIcon className="w-5 h-5 mr-2" />
-                <span>{linkCopied ? 'Copied!' : 'Copy Link'}</span>
-            </button>
-            <button
-                onClick={handlePrint}
-                className="inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-            >
-                <PrintIcon className="w-5 h-5 mr-2" />
-                <span>Print</span>
-            </button>
+            <div className="mt-6">
+              <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+              >
+                  <WhatsAppIcon className="w-5 h-5 mr-2" />
+                  <span>Share on WhatsApp</span>
+              </a>
             </div>
         </div>
     </div>

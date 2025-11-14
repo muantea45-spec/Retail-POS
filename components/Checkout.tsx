@@ -8,7 +8,7 @@ interface CheckoutProps {
   onUpdateDiscount: (productId: number, discount: number) => void;
   onUpdateManualDiscount: (productId: number, discount: number) => void;
   onRemoveItem: (productId: number) => void;
-  onCheckout: () => void;
+  onCheckout: (status: 'paid' | 'not_paid') => void;
   onBackToSale: () => void;
   subtotal: number;
   itemsTotal: number;
@@ -52,6 +52,18 @@ const Checkout: React.FC<CheckoutProps> = ({
   const hasItemDiscounts = items.some(item => item.discount > 0 || (item.manualDiscount && item.manualDiscount > 0));
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [updatedItemId, setUpdatedItemId] = useState<number | null>(null);
+  const [errors, setErrors] = useState<{ name?: string; address?: string; phone?: string }>({});
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'not_paid'>('paid');
+
+
+  const handleQuantityUpdateWithFeedback = (productId: number, newQuantity: number) => {
+    onUpdateQuantity(productId, newQuantity);
+    setUpdatedItemId(productId);
+    setTimeout(() => {
+        setUpdatedItemId(null);
+    }, 500); // Duration of the highlight effect
+  };
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -81,6 +93,28 @@ const Checkout: React.FC<CheckoutProps> = ({
     const numericValue = value.replace(/[^0-9]/g, '');
     setCustomerPhone(numericValue);
   };
+  
+  const handleConfirmSale = () => {
+    const newErrors: { name?: string; address?: string; phone?: string } = {};
+
+    if (!customerName.trim()) {
+      newErrors.name = 'Customer name is required.';
+    }
+
+    if (!customerAddress.trim()) {
+      newErrors.address = 'Customer address is required.';
+    }
+
+    if (customerPhone.trim() && !/^\d{10}$/.test(customerPhone.trim())) {
+      newErrors.phone = 'Phone number must be 10 digits.';
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      onCheckout(paymentStatus);
+    }
+  };
 
 
   return (
@@ -98,7 +132,10 @@ const Checkout: React.FC<CheckoutProps> = ({
           <h3 className="text-xl font-bold mb-4">Order Summary</h3>
           <div className="max-h-80 overflow-y-auto pr-2 space-y-4 border-b dark:border-slate-700 pb-4 mb-4">
               {items.map(item => (
-                <div key={item.id} className="flex flex-col space-y-2 border-b border-slate-200 dark:border-slate-700 pb-3 last:border-b-0">
+                <div 
+                  key={item.id} 
+                  className={`flex flex-col space-y-2 border-b border-slate-200 dark:border-slate-700 pb-3 last:border-b-0 p-2 -m-2 rounded-lg transition-colors duration-500 ${updatedItemId === item.id ? 'bg-primary-100 dark:bg-primary-900/40' : 'bg-transparent'}`}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-grow">
                         <p className="font-semibold text-slate-800 dark:text-slate-200">{item.name}</p>
@@ -141,10 +178,10 @@ const Checkout: React.FC<CheckoutProps> = ({
                     </div>
                     
                     <div className="flex items-center border border-slate-200 dark:border-slate-600 rounded-md">
-                        <button onClick={() => onUpdateQuantity(item.id, item.quantity - 1)} className="px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-l-md"><MinusIcon className="w-4 h-4" /></button>
+                        <button onClick={() => handleQuantityUpdateWithFeedback(item.id, item.quantity - 1)} className="px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-l-md"><MinusIcon className="w-4 h-4" /></button>
                         <span className="px-3 text-center text-sm font-medium">{item.quantity}</span>
                         <button 
-                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} 
+                        onClick={() => handleQuantityUpdateWithFeedback(item.id, item.quantity + 1)} 
                         className="px-2 py-1 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-r-md disabled:opacity-50 disabled:cursor-not-allowed">
                         <PlusIcon className="w-4 h-4" />
                         </button>
@@ -155,41 +192,70 @@ const Checkout: React.FC<CheckoutProps> = ({
           </div>
 
           <div>
-              <h3 className="text-xl font-bold mb-4">Customer Details</h3>
-              <div className="space-y-3 relative">
-                  <input 
-                    type="text" 
-                    placeholder="Name" 
-                    value={customerName} 
-                    onChange={handleNameChange}
-                    onFocus={() => setShowSuggestions(true)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)} // Delay to allow click
-                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" 
-                    autoComplete="off"
-                  />
-                  {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto bottom-full mb-1">
-                      {suggestions.map((customer, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleSuggestionClick(customer)}
-                          className="p-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
-                        >
-                          <p className="font-semibold">{customer.name}</p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">{customer.phone}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <input type="text" placeholder="Address" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" />
-                  <input 
-                    type="tel" 
-                    placeholder="Phone Number" 
-                    value={customerPhone} 
-                    onChange={handlePhoneChange} 
-                    className="w-full p-3 text-base border border-slate-300 dark:border-slate-600 rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500" 
-                  />
+            <h3 className="text-xl font-bold mb-4">Customer Details</h3>
+            <div className="space-y-4">
+              <div className="relative">
+                <label htmlFor="customer-name" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="customer-name"
+                  type="text"
+                  placeholder="Customer Name"
+                  value={customerName}
+                  onChange={handleNameChange}
+                  onFocus={() => setShowSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                  className={`w-full p-3 text-base border ${errors.name ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500 transition-colors`}
+                  autoComplete="off"
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute z-10 w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md shadow-lg mt-1 max-h-40 overflow-y-auto">
+                    {suggestions.map((customer, index) => (
+                      <div
+                        key={index}
+                        onClick={() => handleSuggestionClick(customer)}
+                        className="p-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700"
+                      >
+                        <p className="font-semibold">{customer.name}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{customer.phone}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
               </div>
+
+              <div>
+                <label htmlFor="customer-address" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="customer-address"
+                  type="text"
+                  placeholder="Customer Address"
+                  value={customerAddress}
+                  onChange={e => setCustomerAddress(e.target.value)}
+                  className={`w-full p-3 text-base border ${errors.address ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500 transition-colors`}
+                />
+                {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+              </div>
+
+              <div>
+                <label htmlFor="customer-phone" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                    Phone Number
+                </label>
+                <input
+                  id="customer-phone"
+                  type="tel"
+                  placeholder="10-digit Phone Number"
+                  value={customerPhone}
+                  onChange={handlePhoneChange}
+                  className={`w-full p-3 text-base border ${errors.phone ? 'border-red-500' : 'border-slate-300 dark:border-slate-600'} rounded-md bg-white dark:bg-slate-700 focus:ring-primary-500 focus:border-primary-500 transition-colors`}
+                />
+                {errors.phone && <p className="text-red-500 text-sm mt-1">{errors.phone}</p>}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -236,8 +302,39 @@ const Checkout: React.FC<CheckoutProps> = ({
                 <span>Grand Total</span>
                 <span>₹{finalTotal.toFixed(2)}</span>
               </div>
+              <div className="pt-2">
+                <h4 className="text-lg font-semibold mb-3 text-slate-800 dark:text-slate-200">Payment Status</h4>
+                 <div role="radiogroup" className="flex rounded-lg bg-slate-200 dark:bg-slate-700 p-1">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={paymentStatus === 'paid'}
+                      onClick={() => setPaymentStatus('paid')}
+                      className={`w-1/2 py-2 text-center font-medium transition-colors rounded-md ${
+                        paymentStatus === 'paid'
+                          ? 'bg-primary-600 text-white shadow'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      Paid
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={paymentStatus === 'not_paid'}
+                      onClick={() => setPaymentStatus('not_paid')}
+                      className={`w-1/2 py-2 text-center font-medium transition-colors rounded-md ${
+                        paymentStatus === 'not_paid'
+                          ? 'bg-red-500 text-white shadow'
+                          : 'text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                      }`}
+                    >
+                      Not Paid
+                    </button>
+                  </div>
+              </div>
               <button
-                onClick={onCheckout}
+                onClick={handleConfirmSale}
                 disabled={items.length === 0}
                 className="w-full bg-primary-600 text-white font-bold py-4 px-4 rounded-lg hover:bg-primary-700 transition-colors disabled:bg-slate-300 dark:disabled:bg-slate-600 disabled:cursor-not-allowed text-xl"
               >
