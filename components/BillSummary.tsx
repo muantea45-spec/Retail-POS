@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { Sale } from '../types';
-import { WhatsAppIcon, DownloadIcon, PrintIcon, LinkIcon } from './icons';
+import { WhatsAppIcon, DownloadIcon } from './icons';
 import BillDetails from './BillDetails';
 
 // Make jspdf and html2canvas available in the scope
@@ -14,7 +14,6 @@ interface BillSummaryProps {
 
 const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
   const billRef = useRef<HTMLDivElement>(null);
-  const [linkCopied, setLinkCopied] = useState(false);
 
   const generateBillText = useCallback(() => {
     let text = '--- FC Store ---\n';
@@ -75,25 +74,6 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
     setBillText(generateBillText());
   }, [generateBillText, sale]);
 
-  const handlePrint = () => {
-    window.print();
-  };
-  
-  const handleShareLink = useCallback(() => {
-    // The receiving end in App.tsx correctly re-hydrates the date object from the ISO string
-    const saleJson = JSON.stringify(sale);
-    const encodedData = btoa(saleJson);
-    const url = `${window.location.origin}${window.location.pathname}#bill=${encodedData}`;
-
-    navigator.clipboard.writeText(url).then(() => {
-        setLinkCopied(true);
-        setTimeout(() => setLinkCopied(false), 2500); // Reset after 2.5 seconds
-    }).catch(err => {
-        console.error('Failed to copy link: ', err);
-        alert('Failed to copy link to clipboard.');
-    });
-  }, [sale]);
-
   const handleDownloadPdf = () => {
     const input = billRef.current;
     if (!input) return;
@@ -153,27 +133,13 @@ const BillSummary: React.FC<BillSummaryProps> = ({ sale, onNewSale }) => {
       
         <div className="mt-8 bg-white dark:bg-slate-800 rounded-lg shadow-lg p-6 no-print sticky bottom-0">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Share & Export Bill</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                <button
-                    onClick={handlePrint}
-                    className="w-full inline-flex items-center justify-center bg-slate-500 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                    <PrintIcon className="w-5 h-5 mr-2" />
-                    <span>Print</span>
-                </button>
+            <div className="grid grid-cols-2 gap-3 mb-6">
                 <button
                     onClick={handleDownloadPdf}
                     className="w-full inline-flex items-center justify-center bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
                 >
                     <DownloadIcon className="w-5 h-5 mr-2" />
                     <span>PDF</span>
-                </button>
-                <button
-                    onClick={handleShareLink}
-                    className="w-full inline-flex items-center justify-center bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                >
-                    <LinkIcon className="w-5 h-5 mr-2" />
-                    <span>{linkCopied ? 'Copied!' : 'Copy Link'}</span>
                 </button>
                 <a
                     href={whatsappLink}
